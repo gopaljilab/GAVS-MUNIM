@@ -17,14 +17,6 @@
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/GAVS_PS-4.1-red?style=flat-square" alt="GAVS PS 4.1" />
 </p>
-
-<p align="center">
-  <a href="https://github.com/gopaljilab/GAVS-MUNIM/stargazers"><img src="https://img.shields.io/github/stars/gopaljilab/GAVS-MUNIM?style=social" alt="Stars" /></a>
-  <a href="https://github.com/gopaljilab/GAVS-MUNIM/network/members"><img src="https://img.shields.io/github/forks/gopaljilab/GAVS-MUNIM?style=social" alt="Forks" /></a>
-  <a href="https://github.com/gopaljilab/GAVS-MUNIM/issues"><img src="https://img.shields.io/github/issues/gopaljilab/GAVS-MUNIM?style=social" alt="Issues" /></a>
-  <a href="https://github.com/gopaljilab/GAVS-MUNIM/graphs/contributors"><img src="https://img.shields.io/github/contributors/gopaljilab/GAVS-MUNIM?style=social" alt="Contributors" /></a>
-</p>
-
 </div>
 
 <p align="center">
@@ -66,7 +58,7 @@
 Small sheet-metal fabrication workshops in India operate on razor-thin operating margins (typically 8–15%). Factory owners make critical purchasing decisions on WhatsApp, quoting customer jobs via gut feel and rough rule-of-thumb estimates. This leads to two catastrophic financial leaks:
 
 ```
-❌ The "Cheapest Base Rate" Trap: An unbilled supplier quotes ₹92/kg, but non-creditable GST and freight make it ₹15/kg MORE expensive.
+❌ The "Cheapest Base Rate" Trap: An unbilled supplier quotes ₹92/kg, but non-creditable GST and freight make it ₹15.56/kg MORE expensive (costing ₹7,780 more on 500 kg).
 ❌ The "Blind Costing" Trap: Quoting chassis jobs without factoring sheet scrap loss (-₹25/kg) and machine setup time, turning paper profits into cash losses.
 ```
 
@@ -75,7 +67,7 @@ MUNIM bridges the gap between chaotic vendor messaging and disciplined commercia
 | Problem in Small Indian Workshops | MUNIM's Engineering Approach |
 |---|---|
 | **Opaque WhatsApp Quotes:** Raw material quotes arrive as unstructured messages, voice transcripts, or messy emails missing freight, delivery timelines, or GST terms. | **Advisory AI Quote Intelligence:** Ingests unformatted text, extracts candidate pricing with confidence scores & evidence spans, and drafts vendor clarification messages. |
-| **The "Cheapest Rate" Trap:** Suppliers quote low headline prices (e.g. ₹92/kg) but exclude freight (₹7,500) and GST (non-creditable ITC), causing owners to overpay. | **Deterministic Economic Landed Cost:** Pure Java `BigDecimal` computes true net landed cost per unit, factoring freight allocation, scrap credit, and GST ITC. |
+| **The "Cheapest Rate" Trap:** Suppliers quote low headline prices (e.g. ₹92/kg) but exclude freight (₹2,500) and ineligible GST (₹8,280), causing owners to overpay. | **Deterministic Economic Landed Cost:** Pure Java `BigDecimal` computes true net landed cost per unit, factoring freight allocation, scrap credit, and GST ITC. |
 | **Underquoting Customer Jobs:** Quotations are created via guesswork without scrap credit or machine-hour breakdown, leading to orders executed at a loss. | **Sheet-Metal BOM & Profitability Engine:** Automated BOM rollup linking raw materials, sheet scrap recovery (-₹25/kg), conversion steps, and overheads. |
 | **Uncontrolled Financial Commitments:** Staff or automated systems commit funds or quote customers without owner oversight. | **Sole Commercial Writer & Cryptographic Gates:** Only authenticated owners can approve awards via SHA-256 snapshots with stale detection and tamper proofing. |
 
@@ -98,19 +90,19 @@ MUNIM bridges the gap between chaotic vendor messaging and disciplined commercia
 
 ### 🛡️ 3. Approvals Gateway (Human-in-the-Loop Governance)
 - **Independent Split-Pane Scrolling:** Fixed queue on the left with auto-selection of the first pending item; dedicated proposal inspector on the right.
-- **Money-Focused Decision Cards:** Formatted Indian Rupee amounts (`₹ 57,550`), savings badges (`Saved ₹4,200 vs next-best`), realized margin percentages, and risk flags.
+- **Money-Focused Decision Cards:** Formatted Indian Rupee amounts (`₹ 57,550`), savings badges (`Saved ₹7,780 vs Mahalaxmi Trap`), realized margin percentages, and risk flags.
 - **Cryptographic SHA-256 Integrity Expander:** Collapsible integrity viewer verifying the canonical JSON payload against the stored snapshot hash.
 - **Strict Human-in-the-Loop:** Decisions to `REJECT` mandate a non-blank justification; decisions to `APPROVE` atomically invalidate competing proposals.
 
 ### 📊 4. Money-Focused Operations Dashboard
-- **Financial Impact KPIs:** *₹ Saved vs. Highest Quote* (`₹ 48,250`), *Pending Approvals* (`2 Pending`), *Active Pipeline Value* (`₹ 18,50,000`), and *Average Realized Margin* (`21.8% · 20% Target Protected`).
+- **Financial Impact KPIs:** *₹ Saved on Active RFQ* (`₹ 7,780`), *Pending Approvals* (`2 Pending`), *Active Pipeline Value* (`₹ 18,50,000`), and *Average Realized Margin* (`21.8% · 20% Target Protected`).
 - **Interactive SVG Margin Chart:** Visualizes realized margin per customer enquiry against the company's 20% target policy line and 10% minimum margin floor line.
 - **High-Priority Action Required Panel:** Flags margin breaches (*Kirloskar Pneumatic 8.2%*), pending supplier awards, and procurement arbitrage opportunities.
 
 ### ⚡ 5. 1-Click Guided E2E Autonomous Demo
 - **Autonomous Walkthrough:** Executes the complete 7-step commercial flow live against PostgreSQL 17 in under 60 seconds without manual entry.
 - **Real-Time Stepper & Terminal:** Live progress indicators, node completion ticks, and detailed execution terminal output.
-- **Verified Commercial Impact Celebration Card:** Highlighting *₹4,500 raw material landed savings*, *₹625 scrap credit recovered*, *20.0% profit margin protected*, and *100% cryptographic SHA-256 audit seal*.
+- **Verified Commercial Impact Celebration Card:** Highlighting *₹7,780 raw material landed savings*, *₹625 scrap credit recovered*, *20.0% profit margin protected*, and *100% cryptographic SHA-256 audit seal*.
 
 ---
 
@@ -216,7 +208,7 @@ graph TB
     </tr>
     <tr>
       <td>Advisory AI Extraction</td>
-      <td>Regex evidence span scanning, confidence scoring, prompt injection containment</td>
+      <td>OpenAI LLM extraction (<code>OpenAiExtractionProvider</code>) with deterministic evidence span validation (<code>ExtractionValidator</code>) and offline mock fallback (<code>MockExtractionProvider</code>)</td>
     </tr>
     <tr>
       <td rowspan="3"><strong>Database & DevOps</strong></td>
@@ -496,18 +488,18 @@ curl -X POST http://localhost:8080/api/v1/approvals/proposals/prop-101/decision 
 MUNIM guarantees zero financial drift using pure Java `BigDecimal` with `RoundingMode.HALF_UP`. Floating-point arithmetic is strictly prohibited in the financial core.
 
 ### 1. The WhatsApp Landed Cost Trap Breakdown
-Why the "cheaper" ₹92/kg quote costs ₹7,780 **more** than a compliant ₹95/kg quote for 500 kg of MS Sheet:
+Why the "cheaper" ₹92/kg quote costs ₹7,780 **more** in true landed cost than a compliant ₹95/kg quote for 500 kg of MS Sheet:
 
-| Metric | Apex Steel Works (Compliant) | Mahalaxmi Metals (WhatsApp Trap) | Impact on Factory Owner |
+| Metric | Apex Steel Works (Compliant Pune) | Mahalaxmi Metals (WhatsApp Trap) | Impact on Factory Owner |
 |---|:---:|:---:|---|
 | **Quoted Base Rate** | ₹ 95.00 / kg | **₹ 92.00 / kg** | *Mahalaxmi looks ₹3.00/kg cheaper on WhatsApp* |
-| **Gross Material Cost (500 kg)** | ₹ 47,500.00 | ₹ 46,000.00 | Difference of ₹1,500 |
-| **Freight & Delivery** | **₹ 1,250.00** (Local Chakan) | **₹ 8,750.00** (Outstation Ex-Works) | Freight penalty of +₹7,500 |
-| **GST Charged (18%)** | ₹ 8,775.00 | ₹ 9,855.00 | Tax component |
-| **GST Input Tax Credit (ITC)** | **-₹ 8,775.00** (100% Eligible) | **₹ 0.00** (Composition / Unregistered) | **Tax trap: Lost ₹8,775 ITC refund** |
-| **Payment Discount (2% 10 Days)** | **-₹ 950.00** | ₹ 0.00 | Early cash settlement discount |
-| **True Economic Landed Cost** | **₹ 47,800.00** | **₹ 54,750.00** | **Apex Steel saves ₹6,950 net** |
-| **Effective Net Cost Per KG** | **₹ 95.60 / kg** | **₹ 109.50 / kg** | **Mahalaxmi is ₹13.90/kg MORE EXPENSIVE!** |
+| **Material Base (500 kg)** | ₹ 47,500.00 | ₹ 46,000.00 | Difference of ₹1,500 |
+| **Freight & Delivery** | **₹ 1,500.00** (Local Bhosari) | **₹ 2,500.00** (Ex-Works Chakan) | Delivery surcharge of +₹1,000 |
+| **GST Charged (18%)** | ₹ 8,550.00 | ₹ 8,280.00 | Tax component |
+| **GST Input Tax Credit (ITC)** | **-₹ 8,550.00** (100% Creditable) | **₹ 0.00** (Non-Creditable / Ineligible) | **Tax trap: Lost ₹8,280 ITC refund** |
+| **Gross Cash Outflow** | ₹ 57,550.00 | ₹ 56,780.00 | Total invoice cash payable |
+| **True Economic Landed Cost** | **₹ 49,000.00** | **₹ 56,780.00** | **Apex Steel saves ₹7,780.00 in real cash** |
+| **Effective Net Cost Per KG** | **₹ 98.00 / kg** | **₹ 113.56 / kg** | **Mahalaxmi is ₹15.56/kg MORE EXPENSIVE!** |
 
 ### 2. Sheet-Metal Profitability Waterfall Formula
 For any fabricated assembly (e.g. Industrial Inverter Enclosure):

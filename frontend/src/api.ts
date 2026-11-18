@@ -179,5 +179,7 @@ export const api={
   getQuotation:(id:string)=>
     req<CustomerQuotation>('/customer-quotations/'+id,{headers:h()}),
   submitQuotationApproval:(id:string,expectedSnapshotHash?:string)=>
-    req<Proposal>('/customer-quotations/'+id+'/submit-approval',{method:'POST',headers:h(crypto.randomUUID()),body:JSON.stringify({expectedSnapshotHash:expectedSnapshotHash||null})})
+    req<Proposal>('/customer-quotations/'+id+'/submit-approval',{method:'POST',headers:h(crypto.randomUUID()),body:JSON.stringify({expectedSnapshotHash:expectedSnapshotHash||null})}),
+  seedDemoData:()=>
+    req<{status:string; message:string}>('/demo/seed',{method:'POST',headers:h()})
 };

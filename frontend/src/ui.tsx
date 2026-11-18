@@ -843,6 +843,22 @@ export function App() {
     }
   }
 
+  async function handleSeedDemoData() {
+    setBusy(true);
+    setError('');
+    try {
+      await api.seedDemoData();
+      showToast('Loaded authentic Indian MSME demo data (Apex Steel, Mahalaxmi, Defence Chassis, Bharat Forge)', 'success');
+      await Promise.all([loadEnquiries(), loadApprovals(true)]);
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      showToast(`Failed to seed demo data: ${err}`, 'error');
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const result = evaluation?.result;
 
   return (
@@ -860,6 +876,16 @@ export function App() {
           <p>AI Quote Intelligence · Deterministic Profitability Engine · Human Owner Approvals</p>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="btn-sm btn-outline"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+            onClick={handleSeedDemoData}
+            disabled={busy}
+            title="Reset database with authentic Indian fabrication entities"
+          >
+            <span>🔄</span> Load Demo Data
+          </button>
           <div className="header-pill-cluster">
             <span className="live-dot" />
             <strong className="badge" style={{ background: 'transparent', padding: 0, color: '#e2e8f0', border: 'none' }}>SYNTHETIC DEMO DATA</strong>
@@ -2217,9 +2243,9 @@ export function App() {
 
           <div className="kpi-grid">
             <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '14px' }}>
-              <div className="hero-label" style={{ color: '#34d399' }}>₹ Saved vs. Highest Quote</div>
-              <div className="hero-value" style={{ color: '#34d399' }}>₹ 48,250</div>
-              <div className="hero-sub">Across 12 RFQs Evaluated</div>
+              <div className="hero-label" style={{ color: '#34d399' }}>₹ Saved on Active RFQ</div>
+              <div className="hero-value" style={{ color: '#34d399' }}>₹ 7,780</div>
+              <div className="hero-sub">Landed Savings (Apex vs Mahalaxmi Trap)</div>
             </div>
             <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '14px' }}>
               <div className="hero-label" style={{ color: '#f87171' }}>Pending Approvals</div>
@@ -2460,7 +2486,7 @@ export function App() {
               </p>
               <div className="demo-value-grid">
                 <div className="demo-value-item">
-                  <div className="demo-value-num">₹ 4,500</div>
+                  <div className="demo-value-num">₹ 7,780</div>
                   <div className="demo-value-label">Raw Material Landed Savings</div>
                 </div>
                 <div className="demo-value-item">
