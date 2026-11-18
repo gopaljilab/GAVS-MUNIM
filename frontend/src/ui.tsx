@@ -880,15 +880,15 @@ export function App() {
       </header>
 
       {/* Top Navigation Tabs */}
-      <nav className="nav-tabs">
+      <nav className="nav-tabs" aria-label="Main Navigation">
         <button
           type="button"
           className={`nav-tab ${activeTab === 'PROCUREMENT' ? 'active' : ''}`}
           onClick={() => setActiveTab('PROCUREMENT')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-          Procurement (PS 4.1)
-          <span className="kbd-hint">1</span>
+          <span className="tab-label">Procurement (PS 4.1)</span>
+          <kbd className="kbd-hint">1</kbd>
         </button>
         <button
           type="button"
@@ -896,8 +896,8 @@ export function App() {
           onClick={() => setActiveTab('COMMERCIAL')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M3 7v1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7H3l2-4h14l2 4"/><path d="M5 21V10.85"/><path d="M19 21V10.85"/><path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/></svg>
-          Commercial & Quotations
-          <span className="kbd-hint">2</span>
+          <span className="tab-label">Commercial & Quotations</span>
+          <kbd className="kbd-hint">2</kbd>
         </button>
         <button
           type="button"
@@ -905,8 +905,8 @@ export function App() {
           onClick={() => setActiveTab('APPROVALS')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
-          Approvals Gateway
-          <span className="kbd-hint">3</span>
+          <span className="tab-label">Approvals Gateway</span>
+          <kbd className="kbd-hint">3</kbd>
         </button>
         <button
           type="button"
@@ -914,8 +914,8 @@ export function App() {
           onClick={() => setActiveTab('DASHBOARD')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-          Dashboard
-          <span className="kbd-hint">4</span>
+          <span className="tab-label">Dashboard</span>
+          <kbd className="kbd-hint">4</kbd>
         </button>
         <button
           type="button"
@@ -923,8 +923,8 @@ export function App() {
           onClick={() => setActiveTab('DEMO')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Guided E2E Demo
-          <span className="kbd-hint">5</span>
+          <span className="tab-label">Guided E2E Demo</span>
+          <kbd className="kbd-hint">5</kbd>
         </button>
       </nav>
 
