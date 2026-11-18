@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: munim
+      POSTGRES_USER: munim
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-munim-local}
+    ports: ["5432:5432"]
+    volumes: [munim-postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U munim -d munim"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/munim
+      DATABASE_USER: munim
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-munim-local}
+      PORT: 8080
+    ports: ["8080:8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_API_BASE: http://localhost:8080/api/v1
+    ports: ["5173:80"]
+    depends_on: [backend]
+volumes:
+  munim-postgres:

@@ -1,0 +1,839 @@
+openapi: 3.1.0
+info:
+  title: MUNIM API
+  version: 1.1.0
+  description: >-
+    Contract for the single-tenant sheet-metal procurement and profitability MVP.
+    Monetary decimals are strings. LLM outputs are suggestions; approval state
+    changes only through the authorized decision operation.
+    All persisted POST commands require Idempotency-Key. Identical actor,
+    operation, key, and canonical request replay the original response;
+    same key with different content returns 409 IDEMPOTENCY_KEY_REUSED.
+servers:
+  - url: /api/v1
+security:
+  - demoBearer: []
+tags:
+  - {name: Reference}
+  - {name: Procurement}
+  - {name: Quotes}
+  - {name: Evaluations}
+  - {name: Profitability}
+  - {name: Approvals}
+  - {name: Workflows}
+  - {name: Analytics}
+paths:
+  /materials:
+    get:
+      tags: [Reference]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/Active'}]
+      responses:
+        '200': {description: Materials, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/Material'}}}, required: [items]}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+  /suppliers:
+    get:
+      tags: [Reference]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/Active'}]
+      responses:
+        '200': {description: Suppliers, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/Supplier'}}}, required: [items]}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Reference]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SupplierCreate'}}}}
+      responses:
+        '201': {description: Supplier, content: {application/json: {schema: {$ref: '#/components/schemas/Supplier'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /owner-policy:
+    get:
+      tags: [Reference]
+      x-required-role: [OWNER]
+      responses:
+        '200': {description: Current policy, content: {application/json: {schema: {$ref: '#/components/schemas/OwnerPolicy'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+    put:
+      tags: [Reference]
+      x-required-role: [OWNER]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OwnerPolicyUpdate'}}}}
+      responses:
+        '200': {description: New immutable policy version, content: {application/json: {schema: {$ref: '#/components/schemas/OwnerPolicy'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /rfqs:
+    get:
+      tags: [Procurement]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      parameters:
+        - {name: status, in: query, schema: {type: string}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/Size'}
+      responses:
+        '200': {description: RFQ page, content: {application/json: {schema: {$ref: '#/components/schemas/RfqPage'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Procurement]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RfqCreate'}}}}
+      responses:
+        '201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Rfq'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /rfqs/{rfqId}:
+    parameters: [{$ref: '#/components/parameters/RfqId'}]
+    get:
+      tags: [Procurement]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: RFQ, content: {application/json: {schema: {$ref: '#/components/schemas/Rfq'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /rfqs/{rfqId}/completeness:
+    parameters: [{$ref: '#/components/parameters/RfqId'}]
+    get:
+      tags: [Procurement]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      parameters: [{name: quoteRevisionId, in: query, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Completeness result, content: {application/json: {schema: {$ref: '#/components/schemas/Completeness'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /rfqs/{rfqId}/quotes:
+    parameters: [{$ref: '#/components/parameters/RfqId'}]
+    post:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/QuoteCreate'}}}}
+      responses:
+        '201': {description: Received revision, content: {application/json: {schema: {$ref: '#/components/schemas/QuoteRevision'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /quotes/{quoteId}/revisions/{revision}:
+    parameters: [{$ref: '#/components/parameters/QuoteId'}, {$ref: '#/components/parameters/Revision'}]
+    get:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Quote revision, content: {application/json: {schema: {$ref: '#/components/schemas/QuoteRevision'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /quotes/{quoteId}/revisions/{revision}/extract:
+    parameters: [{$ref: '#/components/parameters/QuoteId'}, {$ref: '#/components/parameters/Revision'}]
+    post:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: false, content: {application/json: {schema: {type: object, properties: {locale: {type: string}}}}}}
+      responses:
+        '200': {description: Candidate fields, never automatically verified, content: {application/json: {schema: {$ref: '#/components/schemas/ExtractionResult'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '502': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /quotes/{quoteId}/revisions/{revision}/extraction:
+    parameters: [{$ref: '#/components/parameters/QuoteId'}, {$ref: '#/components/parameters/Revision'}]
+    get:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Latest extraction, content: {application/json: {schema: {$ref: '#/components/schemas/ExtractionResult'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /quotes/{quoteId}/revisions/{revision}/fields:
+    parameters: [{$ref: '#/components/parameters/QuoteId'}, {$ref: '#/components/parameters/Revision'}]
+    put:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/QuoteFieldCorrection'}}}}
+      responses:
+        '200': {description: New revision, content: {application/json: {schema: {$ref: '#/components/schemas/QuoteRevision'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /quotes/{quoteId}/revisions/{revision}/clarifications:
+    parameters: [{$ref: '#/components/parameters/QuoteId'}, {$ref: '#/components/parameters/Revision'}]
+    get:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Clarification list, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/ClarificationDraft'}}}, required: [items]}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {expectedFields: {type: array, items: {type: string}, minItems: 1}}, required: [expectedFields]}}}}
+      responses:
+        '201': {description: Draft only; not sent, content: {application/json: {schema: {$ref: '#/components/schemas/ClarificationDraft'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '502': {$ref: '#/components/responses/Problem'}
+  /quotes/{quoteId}/revisions/{revision}/clarifications/{clarificationId}/response:
+    parameters: [{$ref: '#/components/parameters/QuoteId'}, {$ref: '#/components/parameters/Revision'}, {$ref: '#/components/parameters/ClarificationId'}]
+    post:
+      tags: [Quotes]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {responseText: {type: string}, receivedAt: {type: string, format: date-time}, simulated: {type: boolean}}, required: [responseText, receivedAt, simulated]}}}}
+      responses:
+        '201': {description: New quote revision, content: {application/json: {schema: {$ref: '#/components/schemas/QuoteRevision'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /rfqs/{rfqId}/evaluations:
+    parameters: [{$ref: '#/components/parameters/RfqId'}]
+    post:
+      tags: [Evaluations]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EvaluationCreate'}}}}
+      responses:
+        '201': {description: Persisted evaluation, content: {application/json: {schema: {$ref: '#/components/schemas/Evaluation'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /evaluations/{evaluationId}:
+    parameters: [{$ref: '#/components/parameters/EvaluationId'}]
+    get:
+      tags: [Evaluations]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Immutable evaluation, content: {application/json: {schema: {$ref: '#/components/schemas/Evaluation'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /evaluations/{evaluationId}/lines:
+    parameters: [{$ref: '#/components/parameters/EvaluationId'}]
+    get:
+      tags: [Evaluations]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Persisted evaluation lines, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/EvaluationLine'}}}, required: [items]}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /rfqs/{rfqId}/comparison:
+    parameters: [{$ref: '#/components/parameters/RfqId'}]
+    get:
+      tags: [Evaluations]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      parameters: [{name: evaluationId, in: query, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Comparison from persisted evaluation, content: {application/json: {schema: {$ref: '#/components/schemas/Comparison'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /evaluations/{evaluationId}/negotiation-drafts:
+    parameters: [{$ref: '#/components/parameters/EvaluationId'}]
+    post:
+      tags: [Evaluations]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {quoteRevisionId: {type: string, format: uuid}, proposedUnitRate: {$ref: '#/components/schemas/Decimal'}, requestedTerms: {type: array, items: {type: string}}}, required: [quoteRevisionId]}}}}
+      responses:
+        '201': {description: Draft and applied policy limits, content: {application/json: {schema: {$ref: '#/components/schemas/NegotiationDraft'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '502': {$ref: '#/components/responses/Problem'}
+  /evaluations/{evaluationId}/award-proposals:
+    parameters: [{$ref: '#/components/parameters/EvaluationId'}]
+    post:
+      tags: [Approvals]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AwardProposalCreate'}}}}
+      responses:
+        '201': {description: Pending award proposal, content: {application/json: {schema: {$ref: '#/components/schemas/Proposal'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /customer-enquiries:
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [OPEN, COSTED, QUOTED, WON, LOST]}}
+      responses:
+        '200': {description: List of customer enquiries, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/CustomerEnquiryView'}}}, required: [items]}}}}
+    post:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnquiryCreate'}}}}
+      responses:
+        '201': {description: Customer enquiry created, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnquiryView'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+  /customer-enquiries/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Customer enquiry details, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnquiryView'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+    patch:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnquiryUpdate'}}}}
+      responses:
+        '200': {description: Customer enquiry updated, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnquiryView'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /customer-enquiries/{id}/boms:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: BOMs for enquiry, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/BomView'}}}, required: [items]}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BomCreate'}}}}
+      responses:
+        '201': {description: BOM created, content: {application/json: {schema: {$ref: '#/components/schemas/BomView'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /boms/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: BOM details with items, content: {application/json: {schema: {$ref: '#/components/schemas/BomView'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /boms/{id}/items:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    post:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BomItemCreate'}}}}
+      responses:
+        '201': {description: BOM item added, content: {application/json: {schema: {$ref: '#/components/schemas/BomItemView'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /boms/{id}/items/{itemId}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: itemId, in: path, required: true, schema: {type: string, format: uuid}}
+    put:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/BomItemUpdate'}}}}
+      responses:
+        '200': {description: BOM item updated, content: {application/json: {schema: {$ref: '#/components/schemas/BomItemView'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      responses:
+        '204': {description: BOM item deleted}
+        '404': {$ref: '#/components/responses/Problem'}
+  /boms/{id}/costings:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Costing sheets for BOM, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/CostingSheetView'}}}, required: [items]}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CostingRunRequest'}}}}
+      responses:
+        '201': {description: Costing calculated and persisted, content: {application/json: {schema: {$ref: '#/components/schemas/CostingSheetView'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /costing-sheets/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Costing sheet snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/CostingSheetView'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /customer-quotations:
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      parameters:
+        - {name: enquiryId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Customer quotations, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/CustomerQuotationView'}}}, required: [items]}}}}
+    post:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerQuotationCreate'}}}}
+      responses:
+        '201': {description: Customer quotation generated, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerQuotationView'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /customer-quotations/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Customer quotation details, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerQuotationView'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /customer-quotations/{id}/submit-approval:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    post:
+      tags: [Approvals]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: false, content: {application/json: {schema: {$ref: '#/components/schemas/QuotationApprovalSubmission'}}}}
+      responses:
+        '201': {description: Commercial proposal created for customer quotation, content: {application/json: {schema: {$ref: '#/components/schemas/Proposal'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /customer-enquiries/{id}/quotations:
+    parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+    get:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Quotations for enquiry, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/CustomerQuotationView'}}}, required: [items]}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /enquiries:
+    post:
+      tags: [Profitability]
+      x-required-role: [OWNER, QUOTATION_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/EnquiryCreate'}}}}
+      responses:
+        '201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Enquiry'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+  /enquiries/{enquiryId}/cost-sheets:
+    parameters: [{$ref: '#/components/parameters/EnquiryId'}]
+    post:
+      tags: [Profitability]
+      x-required-role: [OWNER, QUOTATION_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CostSheetCreate'}}}}
+      responses:
+        '201': {description: Cost sheet, content: {application/json: {schema: {$ref: '#/components/schemas/CostSheet'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /cost-sheets/{costSheetId}/simulate:
+    parameters: [{$ref: '#/components/parameters/CostSheetId'}]
+    post:
+      tags: [Profitability]
+      x-required-role: [OWNER, QUOTATION_OPERATOR]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {expectedVersion: {type: integer}, sellingPrice: {$ref: '#/components/schemas/Money'}}, required: [expectedVersion, sellingPrice]}}}}
+      responses:
+        '200': {description: Deterministic simulation, content: {application/json: {schema: {$ref: '#/components/schemas/PriceSimulation'}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /cost-sheets/{costSheetId}/quote-proposals:
+    parameters: [{$ref: '#/components/parameters/CostSheetId'}]
+    post:
+      tags: [Approvals]
+      x-required-role: [OWNER, QUOTATION_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CustomerProposalCreate'}}}}
+      responses:
+        '201': {description: Pending proposal, content: {application/json: {schema: {$ref: '#/components/schemas/Proposal'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /approvals:
+    get:
+      tags: [Approvals]
+      x-required-role: [OWNER]
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [PENDING, APPROVED, REJECTED, STALE]}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/Size'}
+      responses:
+        '200': {description: Read-only approval queue, content: {application/json: {schema: {$ref: '#/components/schemas/ApprovalPage'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+  /approvals/{proposalId}:
+    parameters: [{$ref: '#/components/parameters/ProposalId'}]
+    get:
+      tags: [Approvals]
+      x-required-role: [OWNER]
+      responses:
+        '200': {description: Approval detail, content: {application/json: {schema: {$ref: '#/components/schemas/ApprovalDetail'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /proposals/{proposalId}/decision:
+    parameters: [{$ref: '#/components/parameters/ProposalId'}]
+    post:
+      tags: [Approvals]
+      x-required-role: [OWNER]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DecisionCreate'}}}}
+      responses:
+        '200': {description: Decision recorded by ApprovalService, content: {application/json: {schema: {$ref: '#/components/schemas/Approval'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /workflows/{workflowId}:
+    parameters: [{$ref: '#/components/parameters/WorkflowId'}]
+    get:
+      tags: [Workflows]
+      x-required-role: [OWNER, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Read-only run and step trace, content: {application/json: {schema: {$ref: '#/components/schemas/WorkflowDetail'}}}}
+        '404': {$ref: '#/components/responses/Problem'}
+  /workflows/{workflowId}/retry:
+    parameters: [{$ref: '#/components/parameters/WorkflowId'}]
+    post:
+      tags: [Workflows]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, properties: {stepId: {type: string, format: uuid}}, required: [stepId]}}}}
+      responses:
+        '202': {description: Retry accepted, content: {application/json: {schema: {$ref: '#/components/schemas/Workflow'}}}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /analytics/summary:
+    get:
+      tags: [Analytics]
+      x-required-role: [OWNER, READ_ONLY_EVALUATOR]
+      parameters:
+        - {name: from, in: query, required: true, schema: {type: string, format: date-time}}
+        - {name: to, in: query, required: true, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Clearly labeled scenario statistics, content: {application/json: {schema: {type: object, properties: {counts: {type: object}, scenarioEstimates: {type: object}, synthetic: {type: boolean, const: true}}, required: [counts, scenarioEstimates, synthetic]}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    demoBearer: {type: http, scheme: bearer, bearerFormat: JWT, description: Local demo identity adapter; server authorization remains mandatory.}
+  parameters:
+    Active: {name: active, in: query, schema: {type: boolean}}
+    Page: {name: page, in: query, schema: {type: integer, minimum: 0, default: 0}}
+    Size: {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 8, maxLength: 128}}
+    RfqId: {name: rfqId, in: path, required: true, schema: {type: string, format: uuid}}
+    QuoteId: {name: quoteId, in: path, required: true, schema: {type: string, format: uuid}}
+    Revision: {name: revision, in: path, required: true, schema: {type: integer, minimum: 1}}
+    ClarificationId: {name: clarificationId, in: path, required: true, schema: {type: string, format: uuid}}
+    EvaluationId: {name: evaluationId, in: path, required: true, schema: {type: string, format: uuid}}
+    EnquiryId: {name: enquiryId, in: path, required: true, schema: {type: string, format: uuid}}
+    CostSheetId: {name: costSheetId, in: path, required: true, schema: {type: string, format: uuid}}
+    ApprovalId: {name: approvalId, in: path, required: true, schema: {type: string, format: uuid}}
+    ProposalId: {name: proposalId, in: path, required: true, schema: {type: string, format: uuid}}
+    WorkflowId: {name: workflowId, in: path, required: true, schema: {type: string, format: uuid}}
+  responses:
+    Problem:
+      description: RFC 9457-style error
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    Decimal:
+      type: string
+      pattern: '^-?\d{1,10}(\.\d{1,4})?$'
+      example: '95.0000'
+      description: Decimal string, no exponent notation; rates/quantities have at most 4 decimals.
+    Money:
+      type: string
+      pattern: '^-?\d{1,12}(\.\d{1,2})?$'
+      example: '47500.00'
+      description: INR monetary amount, exactly two fractional digits in responses.
+    Problem:
+      type: object
+      properties:
+        type: {type: string, format: uri-reference}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        code: {type: string}
+        fieldErrors: {type: object, additionalProperties: {type: string}}
+        traceId: {type: string, format: uuid}
+      required: [type, title, status, code, traceId]
+    Material: {type: object, properties: {id: {type: string, format: uuid}, name: {type: string}, grade: {type: string}, specification: {type: string}, baseUnit: {type: string}, active: {type: boolean}}, required: [id, name, baseUnit, active]}
+    Supplier: {type: object, properties: {id: {type: string, format: uuid}, name: {type: string}, location: {type: string}, isSynthetic: {type: boolean}, active: {type: boolean}}, required: [id, name, isSynthetic, active]}
+    SupplierCreate: {type: object, properties: {name: {type: string, minLength: 1}, location: {type: string}, isSynthetic: {type: boolean, const: true}}, required: [name, isSynthetic]}
+    Completeness: {type: object, properties: {quoteRevisionId: {type: string, format: uuid}, complete: {type: boolean}, missingFields: {type: array, items: {type: string}}, warnings: {type: array, items: {type: string}}}, required: [quoteRevisionId, complete, missingFields, warnings]}
+    OwnerPolicy:
+      type: object
+      properties:
+        version: {type: integer}
+        minimumMarginPercent: {$ref: '#/components/schemas/Decimal'}
+        maximumPurchaseBudget: {$ref: '#/components/schemas/Money'}
+        minimumUnitRate: {$ref: '#/components/schemas/Decimal'}
+        maximumUnitRate: {$ref: '#/components/schemas/Decimal'}
+        maximumDiscountPercent: {$ref: '#/components/schemas/Decimal'}
+        maximumPaymentDays: {type: integer, minimum: 0}
+        allowedNegotiableTerms: {type: array, items: {type: string}}
+        sellerVisibleFields: {type: array, items: {type: string, enum: [material_specification, required_quantity, requested_delivery_date, proposed_unit_rate, payment_terms]}}
+        forbiddenDisclosureFields: {type: array, items: {type: string, enum: [competitor_identity, competitor_quote, internal_target, internal_margin, owner_private_notes, other_supplier_terms]}}
+      required: [version, minimumMarginPercent, maximumPurchaseBudget, minimumUnitRate, maximumUnitRate, maximumDiscountPercent, maximumPaymentDays, allowedNegotiableTerms, sellerVisibleFields, forbiddenDisclosureFields]
+    OwnerPolicyUpdate: {type: object, properties: {expectedVersion: {type: integer}, policy: {$ref: '#/components/schemas/OwnerPolicy'}}, required: [expectedVersion, policy]}
+    RfqCreate:
+      type: object
+      properties:
+        materialId: {type: string, format: uuid}
+        specification: {type: string, minLength: 1}
+        quantity: {$ref: '#/components/schemas/Decimal'}
+        unit: {type: string}
+        customerRequiredBy: {type: [string, 'null'], format: date-time}
+        productionLeadDays: {type: [integer, 'null'], minimum: 0}
+        requiredProcurementDeliveryAt: {type: [string, 'null'], format: date-time}
+        timezone: {type: string, example: Asia/Kolkata}
+        allowSplitSourcing: {type: boolean, const: false}
+      required: [materialId, specification, quantity, unit, timezone, allowSplitSourcing]
+      description: Provide direct procurement deadline or customerRequiredBy plus productionLeadDays; conflicting combinations return 422.
+    RfqPage: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/Rfq'}}, total: {type: integer}}, required: [items, total]}
+    Rfq: {type: object, properties: {id: {type: string, format: uuid}, materialId: {type: string, format: uuid}, quantity: {$ref: '#/components/schemas/Decimal'}, unit: {type: string}, productionLeadDays: {type: [integer, 'null']}, requiredProcurementDeliveryAt: {type: string, format: date-time}, referenceAt: {type: string, format: date-time}, timezone: {type: string}, status: {type: string}}, required: [id, materialId, quantity, unit, requiredProcurementDeliveryAt, referenceAt, timezone, status]}
+    QuoteCreate:
+      type: object
+      properties:
+        supplierId: {type: string, format: uuid}
+        receivedAt: {type: string, format: date-time}
+        rawMessage: {type: string, maxLength: 20000}
+        manualFields: {$ref: '#/components/schemas/QuoteFields'}
+      required: [supplierId, receivedAt, rawMessage, manualFields]
+      description: receivedAt is supplier offer receipt time, not application ingestion time; demo supplier must be synthetic.
+    QuoteFields:
+      type: object
+      properties:
+        unitPrice: {$ref: '#/components/schemas/Decimal'}
+        quotedQuantity: {$ref: '#/components/schemas/Decimal'}
+        unit: {type: string}
+        priceBasis: {type: string, enum: [EXCLUSIVE, INCLUSIVE, UNKNOWN]}
+        materialTaxRate: {$ref: '#/components/schemas/Decimal'}
+        materialItcStatus: {type: string, enum: [CREDITABLE, NON_CREDITABLE, UNKNOWN]}
+        freightBasis: {type: string, enum: [SEPARATE, INCLUDED_IN_UNIT_PRICE, UNKNOWN]}
+        freightAmount: {$ref: '#/components/schemas/Money'}
+        freightTaxRate: {$ref: '#/components/schemas/Decimal'}
+        freightPriceBasis: {type: string, enum: [EXCLUSIVE, INCLUSIVE, UNKNOWN]}
+        freightItcStatus: {type: string, enum: [CREDITABLE, NON_CREDITABLE, UNKNOWN]}
+        moq: {$ref: '#/components/schemas/Decimal'}
+        purchaseIncrement: {$ref: '#/components/schemas/Decimal'}
+        wastagePercent: {$ref: '#/components/schemas/Decimal'}
+        quoteQuantityBasis: {type: string, enum: [INPUT_PURCHASED, USABLE_OUTPUT, UNKNOWN]}
+        promisedDeliveryAt: {type: string, format: date-time}
+        validFrom: {type: string, format: date-time}
+        validUntil: {type: string, format: date-time}
+      description: Omitted/null fields remain UNKNOWN and cause completeness to fail; they are never defaulted to zero.
+    FieldValue: {type: object, properties: {value: {}, confidence: {type: [number, 'null'], minimum: 0, maximum: 1}, evidence: {type: [string, 'null']}, source: {type: string, enum: [EXTRACTED, MANUAL, SUPPLIER_RESPONSE, UNKNOWN]}}, required: [value, confidence, evidence, source]}
+    QuoteRevision: {type: object, properties: {id: {type: string, format: uuid}, quoteId: {type: string, format: uuid}, revision: {type: integer}, state: {type: string, enum: [DRAFT, RECEIVED, EXTRACTED, NEEDS_REVIEW, VERIFIED, SUPERSEDED, WITHDRAWN]}, receivedAt: {type: string, format: date-time}, fields: {type: object, additionalProperties: {$ref: '#/components/schemas/FieldValue'}}, missingFields: {type: array, items: {type: string}}, version: {type: integer}}, required: [id, quoteId, revision, state, fields, missingFields, version]}
+    ExtractionResult: {type: object, properties: {revisionId: {type: string, format: uuid}, candidates: {type: object, additionalProperties: {$ref: '#/components/schemas/FieldValue'}}, providerStatus: {type: string}, modelVersion: {type: string}, promptVersion: {type: string}}, required: [revisionId, candidates, providerStatus, modelVersion, promptVersion]}
+    QuoteFieldCorrection: {type: object, properties: {expectedVersion: {type: integer}, fields: {type: object, additionalProperties: true}, correctionReason: {type: string, minLength: 1}}, required: [expectedVersion, fields, correctionReason]}
+    ClarificationDraft: {type: object, properties: {id: {type: string, format: uuid}, draft: {type: string}, expectedFields: {type: array, items: {type: string}}, status: {type: string, const: DRAFT}}, required: [id, draft, expectedFields, status]}
+    EvaluationCreate: {type: object, properties: {quoteRevisionIds: {type: array, minItems: 1, items: {type: string, format: uuid}}, policyVersion: {type: integer}}, required: [quoteRevisionIds, policyVersion], description: Server records referenceAt; clients cannot backdate evaluation.}
+    Evaluation: {type: object, properties: {id: {type: string, format: uuid}, rfqId: {type: string, format: uuid}, referenceAt: {type: string, format: date-time}, calculationVersion: {type: string}, policyVersion: {type: integer}, status: {type: string, enum: [COMPLETE, INCOMPLETE]}, lines: {type: array, items: {$ref: '#/components/schemas/EvaluationLine'}}, snapshotHash: {type: string}}, required: [id, rfqId, referenceAt, calculationVersion, policyVersion, status, lines, snapshotHash]}
+    EvaluationLine: {type: object, properties: {id: {type: string, format: uuid}, quoteRevisionId: {type: string, format: uuid}, eligible: {type: boolean}, reasonCodes: {type: array, items: {type: string}}, economicLandedCost: {type: [string, 'null']}, cashPayable: {type: [string, 'null']}, currency: {type: string, const: INR}}, required: [id, quoteRevisionId, eligible, reasonCodes, currency]}
+    Comparison: {type: object, properties: {evaluationId: {type: string, format: uuid}, lines: {type: array, items: {$ref: '#/components/schemas/EvaluationLine'}}}, required: [evaluationId, lines]}
+    NegotiationDraft: {type: object, properties: {draft: {type: string}, limits: {type: object, additionalProperties: true}, disclosureCheck: {type: string, enum: [PASS, BLOCKED]}, disclosures: {type: array, items: {type: string}}}, required: [draft, limits, disclosureCheck, disclosures]}
+    AwardProposalCreate: {type: object, properties: {quoteRevisionId: {type: string, format: uuid}, expectedSnapshotHash: {type: string}}, required: [quoteRevisionId, expectedSnapshotHash]}
+    Proposal: {type: object, properties: {id: {type: string, format: uuid}, type: {type: string, enum: [SUPPLIER_AWARD, CUSTOMER_QUOTE]}, status: {type: string, enum: [PENDING, APPROVED, REJECTED, STALE]}, snapshotHash: {type: string}, invalidatedAt: {type: [string, 'null'], format: date-time}}, required: [id, type, status, snapshotHash]}
+    EnquiryCreate: {type: object, properties: {customerName: {type: string}, productDescription: {type: string}, quantity: {$ref: '#/components/schemas/Decimal'}, unit: {type: string}, requiredBy: {type: string, format: date-time}}, required: [productDescription, quantity, unit, requiredBy]}
+    Enquiry: {type: object, properties: {id: {type: string, format: uuid}, status: {type: string}}, required: [id, status]}
+    CostSheetCreate: {type: object, properties: {evaluationLineId: {type: [string, 'null'], format: uuid}, priceBasis: {type: string, enum: [AWARDED_QUOTE, EVALUATED_QUOTE, OWNER_OVERRIDE]}, materialCost: {type: [string, 'null'], pattern: '^\\d+(\\.\\d{1,2})?$'}, labourCost: {type: [string, 'null']}, overheadCost: {type: [string, 'null']}, freightCost: {type: [string, 'null']}, otherCosts: {type: array, items: {type: object, properties: {name: {type: string}, amount: {$ref: '#/components/schemas/Money'}}, required: [name, amount]}}, unknownFields: {type: array, items: {type: string}}}, required: [priceBasis, otherCosts, unknownFields]}
+    CostSheet: {type: object, properties: {id: {type: string, format: uuid}, enquiryId: {type: string, format: uuid}, evaluationId: {type: [string, 'null'], format: uuid}, evaluationLineId: {type: [string, 'null'], format: uuid}, priceBasis: {type: string}, totalCost: {type: [string, 'null']}, version: {type: integer}, completeness: {type: string, enum: [COMPLETE, INCOMPLETE]}}, required: [id, enquiryId, priceBasis, version, completeness]}
+    PriceSimulation: {type: object, properties: {totalCost: {$ref: '#/components/schemas/Money'}, sellingPrice: {$ref: '#/components/schemas/Money'}, profit: {$ref: '#/components/schemas/Money'}, marginPercent: {$ref: '#/components/schemas/Decimal'}, markupPercent: {$ref: '#/components/schemas/Decimal'}, warnings: {type: array, items: {type: string}}}, required: [totalCost, sellingPrice, profit, marginPercent, markupPercent, warnings]}
+    CustomerProposalCreate: {type: object, properties: {expectedVersion: {type: integer}, sellingPrice: {$ref: '#/components/schemas/Money'}, validUntil: {type: string, format: date-time}}, required: [expectedVersion, sellingPrice, validUntil]}
+    ApprovalQueueItem: {type: object, properties: {proposal: {$ref: '#/components/schemas/Proposal'}, createdAt: {type: string, format: date-time}, ownerActionRequired: {type: boolean}}, required: [proposal, createdAt, ownerActionRequired]}
+    ApprovalPage: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/ApprovalQueueItem'}}, total: {type: integer}}, required: [items, total]}
+    Approval: {type: object, properties: {id: {type: string, format: uuid}, proposalId: {type: string, format: uuid}, actorId: {type: string, format: uuid}, decision: {type: string, enum: [APPROVE, REJECT]}, snapshotHash: {type: string}, decidedAt: {type: string, format: date-time}}, required: [id, proposalId, actorId, decision, snapshotHash, decidedAt]}
+    ApprovalDetail: {type: object, properties: {proposal: {$ref: '#/components/schemas/Proposal'}, decisions: {type: array, items: {$ref: '#/components/schemas/Approval'}}}, required: [proposal, decisions]}
+    DecisionCreate: {type: object, properties: {decision: {type: string, enum: [APPROVE, REJECT]}, reason: {type: string}, expectedSnapshotHash: {type: string}}, required: [decision, reason, expectedSnapshotHash]}
+    Workflow: {type: object, properties: {id: {type: string, format: uuid}, state: {type: string, enum: [CREATED, RUNNING, WAITING_FOR_INPUT, READY_FOR_EVALUATION, EVALUATED, AWAITING_APPROVAL, APPROVED, REJECTED, FAILED_RETRYABLE, FAILED_FINAL, STALE, CANCELLED]}, retryCount: {type: integer}, maxRetries: {type: integer}}, required: [id, state, retryCount, maxRetries]}
+    WorkflowDetail: {type: object, properties: {run: {$ref: '#/components/schemas/Workflow'}, steps: {type: array, items: {type: object}}, events: {type: array, items: {type: object}}}, required: [run, steps, events]}
+    CustomerEnquiryCreate:
+      type: object
+      properties:
+        customerName: {type: string, minLength: 1}
+        customerReference: {type: [string, 'null']}
+        contactEmail: {type: [string, 'null']}
+        contactPhone: {type: [string, 'null']}
+        requiredDeliveryDate: {type: string, format: date-time}
+        notes: {type: [string, 'null']}
+      required: [customerName, requiredDeliveryDate]
+    CustomerEnquiryUpdate:
+      type: object
+      properties:
+        customerReference: {type: [string, 'null']}
+        contactEmail: {type: [string, 'null']}
+        contactPhone: {type: [string, 'null']}
+        requiredDeliveryDate: {type: [string, 'null'], format: date-time}
+        notes: {type: [string, 'null']}
+        status: {type: [string, 'null'], enum: [OPEN, COSTED, QUOTED, WON, LOST]}
+    CustomerEnquiryView:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        customerName: {type: string}
+        customerReference: {type: [string, 'null']}
+        contactEmail: {type: [string, 'null']}
+        contactPhone: {type: [string, 'null']}
+        requiredDeliveryDate: {type: string, format: date-time}
+        status: {type: string, enum: [OPEN, COSTED, QUOTED, WON, LOST]}
+        notes: {type: [string, 'null']}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        version: {type: integer}
+      required: [id, customerName, requiredDeliveryDate, status, createdAt, updatedAt, version]
+    BomCreate:
+      type: object
+      properties:
+        bomVersion: {type: [integer, 'null'], minimum: 1}
+        batchQuantity: {$ref: '#/components/schemas/Decimal'}
+      required: [batchQuantity]
+    BomItemCreate:
+      type: object
+      properties:
+        materialId: {type: string, format: uuid}
+        partName: {type: string, minLength: 1}
+        netQuantity: {$ref: '#/components/schemas/Decimal'}
+        unit: {type: string, minLength: 1}
+        scrapPercentage: {$ref: '#/components/schemas/Decimal'}
+        scrapRecoverySupported: {type: boolean}
+        scrapRecoveryPrice: {$ref: '#/components/schemas/Decimal'}
+        sourcingBasis: {type: string, enum: [AWARDED_QUOTE, ESTIMATE]}
+        awardedQuoteRevisionId: {type: [string, 'null'], format: uuid}
+        estimatedUnitCost: {$ref: '#/components/schemas/Decimal'}
+        estimateRationale: {type: [string, 'null']}
+      required: [materialId, partName, netQuantity, unit, sourcingBasis]
+    BomItemUpdate:
+      type: object
+      properties:
+        partName: {type: string}
+        netQuantity: {$ref: '#/components/schemas/Decimal'}
+        unit: {type: string}
+        scrapPercentage: {$ref: '#/components/schemas/Decimal'}
+        scrapRecoverySupported: {type: boolean}
+        scrapRecoveryPrice: {$ref: '#/components/schemas/Decimal'}
+        sourcingBasis: {type: string, enum: [AWARDED_QUOTE, ESTIMATE]}
+        awardedQuoteRevisionId: {type: [string, 'null'], format: uuid}
+        estimatedUnitCost: {$ref: '#/components/schemas/Decimal'}
+        estimateRationale: {type: [string, 'null']}
+    BomItemView:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        bomId: {type: string, format: uuid}
+        materialId: {type: string, format: uuid}
+        partName: {type: string}
+        netQuantity: {$ref: '#/components/schemas/Decimal'}
+        unit: {type: string}
+        scrapPercentage: {$ref: '#/components/schemas/Decimal'}
+        scrapRecoverySupported: {type: boolean}
+        scrapRecoveryPrice: {$ref: '#/components/schemas/Decimal'}
+        sourcingBasis: {type: string, enum: [AWARDED_QUOTE, ESTIMATE]}
+        awardedQuoteRevisionId: {type: [string, 'null'], format: uuid}
+        estimatedUnitCost: {$ref: '#/components/schemas/Decimal'}
+        estimateRationale: {type: [string, 'null']}
+        createdAt: {type: string, format: date-time}
+      required: [id, bomId, materialId, partName, netQuantity, unit, scrapRecoverySupported, sourcingBasis, createdAt]
+    BomView:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        enquiryId: {type: string, format: uuid}
+        bomVersion: {type: integer}
+        batchQuantity: {$ref: '#/components/schemas/Decimal'}
+        status: {type: string, enum: [DRAFT, ACTIVE, SUPERSEDED]}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        items: {type: array, items: {$ref: '#/components/schemas/BomItemView'}}
+      required: [id, enquiryId, bomVersion, batchQuantity, status, createdAt, updatedAt, items]
+    ItemTaxInput:
+      type: object
+      properties:
+        bomItemId: {type: string, format: uuid}
+        itcStatus: {type: string, enum: [CREDITABLE, NON_CREDITABLE]}
+        gstRate: {$ref: '#/components/schemas/Decimal'}
+      required: [bomItemId]
+    OperationCostInput:
+      type: object
+      properties:
+        operationName: {type: string}
+        setupHours: {$ref: '#/components/schemas/Decimal'}
+        setupRate: {$ref: '#/components/schemas/Decimal'}
+        cycleHours: {$ref: '#/components/schemas/Decimal'}
+        machineRate: {$ref: '#/components/schemas/Decimal'}
+        labourHours: {$ref: '#/components/schemas/Decimal'}
+        labourRate: {$ref: '#/components/schemas/Decimal'}
+      required: [operationName]
+    CostingRunRequest:
+      type: object
+      properties:
+        operations: {type: array, items: {$ref: '#/components/schemas/OperationCostInput'}}
+        overheadMultiplier: {$ref: '#/components/schemas/Decimal'}
+        packagingPerPart: {$ref: '#/components/schemas/Decimal'}
+        outboundFreightPerPart: {$ref: '#/components/schemas/Decimal'}
+        targetMargin: {$ref: '#/components/schemas/Decimal'}
+        minimumMargin: {$ref: '#/components/schemas/Decimal'}
+        quotedSellingPrice: {$ref: '#/components/schemas/Decimal'}
+        outputGstRate: {$ref: '#/components/schemas/Decimal'}
+        itemTaxInputs: {type: array, items: {$ref: '#/components/schemas/ItemTaxInput'}}
+      required: [targetMargin, minimumMargin]
+    CostingSheetView:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        enquiryId: {type: string, format: uuid}
+        bomId: {type: string, format: uuid}
+        batchQuantity: {$ref: '#/components/schemas/Decimal'}
+        materialCost: {$ref: '#/components/schemas/Decimal'}
+        conversionCost: {$ref: '#/components/schemas/Decimal'}
+        overheadCost: {$ref: '#/components/schemas/Decimal'}
+        packagingCost: {$ref: '#/components/schemas/Decimal'}
+        freightCost: {$ref: '#/components/schemas/Decimal'}
+        totalCost: {$ref: '#/components/schemas/Decimal'}
+        targetMargin: {$ref: '#/components/schemas/Decimal'}
+        targetPrice: {$ref: '#/components/schemas/Decimal'}
+        quotedPrice: {$ref: '#/components/schemas/Decimal'}
+        realizedMargin: {$ref: '#/components/schemas/Decimal'}
+        marginClassification: {type: string, enum: [HEALTHY_MARGIN, ACCEPTABLE_MARGIN, BELOW_MINIMUM_MARGIN, LOSS_MAKING]}
+        calculationVersion: {type: string}
+        calculationSnapshot: {type: object}
+        snapshotSha256: {type: string}
+        createdAt: {type: string, format: date-time}
+      required: [id, enquiryId, bomId, batchQuantity, materialCost, conversionCost, overheadCost, packagingCost, freightCost, totalCost, targetMargin, targetPrice, marginClassification, calculationVersion, calculationSnapshot, snapshotSha256, createdAt]
+    CustomerQuotationCreate:
+      type: object
+      properties:
+        costingSheetId: {type: string, format: uuid}
+        validFrom: {type: string, format: date-time}
+        validUntil: {type: string, format: date-time}
+        paymentTerms: {type: string, minLength: 1}
+        sellingPrice: {$ref: '#/components/schemas/Decimal'}
+        outputGstRate: {$ref: '#/components/schemas/Decimal'}
+      required: [costingSheetId, validFrom, validUntil, paymentTerms]
+    CustomerQuotationView:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        enquiryId: {type: string, format: uuid}
+        costingSheetId: {type: string, format: uuid}
+        sellingPrice: {$ref: '#/components/schemas/Decimal'}
+        outputGstRate: {$ref: '#/components/schemas/Decimal'}
+        customerPayable: {$ref: '#/components/schemas/Decimal'}
+        validFrom: {type: string, format: date-time}
+        validUntil: {type: string, format: date-time}
+        paymentTerms: {type: string}
+        marginClassification: {type: string, enum: [HEALTHY_MARGIN, ACCEPTABLE_MARGIN, BELOW_MINIMUM_MARGIN, LOSS_MAKING]}
+        approvalStatus: {type: string, enum: [PENDING_SUBMISSION, PENDING, APPROVED, REJECTED, STALE]}
+        commercialProposalId: {type: [string, 'null'], format: uuid}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        version: {type: integer}
+      required: [id, enquiryId, costingSheetId, sellingPrice, outputGstRate, customerPayable, validFrom, validUntil, paymentTerms, marginClassification, approvalStatus, createdAt, updatedAt, version]
+    QuotationApprovalSubmission:
+      type: object
+      properties:
+        expectedSnapshotHash: {type: [string, 'null']}
+        notes: {type: [string, 'null']}

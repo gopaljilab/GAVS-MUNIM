@@ -1,0 +1,438 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { App } from './ui';
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe('procurement vertical slice & human approval UI', () => {
+  it('runs evaluation and executes human approval workflow in manual entry mode', async () => {
+    const qResp = {
+      id: 'quote-1',
+      supplierId: 'sup-1',
+      revisionId: 'rev-1',
+      revision: 1,
+      state: 'RECEIVED',
+      rawMessage: '[SYNTHETIC] supplier message',
+      completenessStatus: 'COMPLETE',
+      missingFields: [],
+      fields: {}
+    };
+
+    const propPending = {
+      id: 'prop-1',
+      type: 'SUPPLIER_AWARD',
+      status: 'PENDING',
+      snapshotHash: 'hash-1234567890abcdef'
+    };
+
+    const propApproved = {
+      id: 'prop-1',
+      type: 'SUPPLIER_AWARD',
+      status: 'APPROVED',
+      snapshotHash: 'hash-1234567890abcdef'
+    };
+
+    const approvalEvent = {
+      id: 'app-1',
+      proposalId: 'prop-1',
+      actorId: 'dev-owner',
+      decision: 'APPROVE',
+      snapshotHash: 'hash-1234567890abcdef',
+      decidedAt: new Date().toISOString()
+    };
+
+    const responses = [
+      // 1. materials
+      { items: [{ id: 'mat-1', name: 'MS sheet', specification: '2mm', base_unit: 'kg' }] },
+      // 2. addSupplier
+      { id: 'sup-1', name: 'Synthetic Steel Supplier A', location: 'Synthetic demo', isSynthetic: true, active: true },
+      // 3. createRfq
+      { id: 'rfq-1', materialId: 'mat-1', specification: '2 mm IS 2062 mild-steel sheet', quantity: '500.0000', unit: 'kg', requiredProcurementDeliveryAt: new Date().toISOString(), referenceAt: new Date().toISOString(), timezone: 'Asia/Kolkata', status: 'OPEN' },
+      // 4. addQuote
+      qResp,
+      // 5. getQuote
+      qResp,
+      // 6. completeness
+      { complete: true, missingFields: [], warnings: [] },
+      // 7. evaluate
+      { id: 'eval-1', rfqId: 'rfq-1', quoteRevisionId: 'rev-1', status: 'COMPLETE', calculationVersion: '1.1', snapshotSha256: 'abc123', inputSnapshot: {}, result: { purchaseQuantity: '500.0000', materialBase: '47500.00', materialGst: '8550.00', freightBase: '1500.00', freightGst: '0.00', economicLandedCost: '57550.00', cashPayable: '57550.00' } },
+      // 8. createAwardProposal
+      propPending,
+      // 9. getApprovalDetail (initial)
+      { proposal: propPending, decisions: [], snapshot: {} },
+      // 10. decideProposal (APPROVE)
+      approvalEvent,
+      // 11. getApprovalDetail (after decision)
+      { proposal: propApproved, decisions: [approvalEvent], snapshot: {} },
+      // 12. getRfq (refresh)
+      { id: 'rfq-1', materialId: 'mat-1', specification: '2 mm IS 2062 mild-steel sheet', quantity: '500.0000', unit: 'kg', requiredProcurementDeliveryAt: new Date().toISOString(), referenceAt: new Date().toISOString(), timezone: 'Asia/Kolkata', status: 'AWARDED' }
+    ];
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(responses.shift()), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })));
+    vi.stubGlobal('crypto', { randomUUID: () => String(Math.random()) });
+
+    render(<App />);
+
+    // Switch to Manual Entry mode
+    fireEvent.click(screen.getByRole('button', { name: 'Manual Entry' }));
+
+    // Step 1: Run procurement evaluation
+    fireEvent.click(screen.getByRole('button', { name: 'Run procurement evaluation' }));
+
+    // Wait for Cost breakdown & Pending Approval Card
+    await waitFor(() => expect(screen.getByText('Cost Breakdown')).toBeTruthy());
+    expect(screen.getAllByText('₹57550.00')).toHaveLength(2);
+    expect(screen.getByText('SYNTHETIC DEMO DATA')).toBeTruthy();
+
+    // Verify clear distinction: Recommended by system (awaiting owner approval)
+    expect(screen.getByText('RECOMMENDED BY SYSTEM (AWAITING OWNER APPROVAL)')).toBeTruthy();
+    expect(screen.getByText('AWAITING OWNER APPROVAL')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Approve as Owner' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reject as Owner' })).toBeTruthy();
+
+    // Step 2: Owner approves proposal
+    fireEvent.click(screen.getByRole('button', { name: 'Approve as Owner' }));
+
+    // Wait for Approved status
+    await waitFor(() => expect(screen.getByText('COMMERCIAL DECISION: APPROVED BY OWNER')).toBeTruthy());
+    expect(screen.getByText('APPROVED BY OWNER')).toBeTruthy();
+    expect(screen.getByText('Immutable Audit & Decision History')).toBeTruthy();
+    expect(screen.getByText('AWARDED')).toBeTruthy();
+  });
+
+  it('rejects without mandatory reason displays validation message', async () => {
+    const qResp = {
+      id: 'quote-1',
+      supplierId: 'sup-1',
+      revisionId: 'rev-1',
+      revision: 1,
+      state: 'RECEIVED',
+      rawMessage: '[SYNTHETIC] supplier message',
+      completenessStatus: 'COMPLETE',
+      missingFields: [],
+      fields: {}
+    };
+
+    const propPending = {
+      id: 'prop-1',
+      type: 'SUPPLIER_AWARD',
+      status: 'PENDING',
+      snapshotHash: 'hash-1234567890abcdef'
+    };
+
+    const responses = [
+      { items: [{ id: 'mat-1', name: 'MS sheet', specification: '2mm', base_unit: 'kg' }] },
+      { id: 'sup-1', name: 'Synthetic Steel Supplier A', location: 'Synthetic demo', isSynthetic: true, active: true },
+      { id: 'rfq-1', materialId: 'mat-1', specification: '2 mm IS 2062 mild-steel sheet', quantity: '500.0000', unit: 'kg', requiredProcurementDeliveryAt: new Date().toISOString(), referenceAt: new Date().toISOString(), timezone: 'Asia/Kolkata', status: 'OPEN' },
+      qResp,
+      qResp,
+      { complete: true, missingFields: [], warnings: [] },
+      { id: 'eval-1', rfqId: 'rfq-1', quoteRevisionId: 'rev-1', status: 'COMPLETE', calculationVersion: '1.1', snapshotSha256: 'abc123', inputSnapshot: {}, result: { purchaseQuantity: '500.0000', materialBase: '47500.00', materialGst: '8550.00', freightBase: '1500.00', freightGst: '0.00', economicLandedCost: '57550.00', cashPayable: '57550.00' } },
+      propPending,
+      { proposal: propPending, decisions: [], snapshot: {} }
+    ];
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(responses.shift()), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })));
+    vi.stubGlobal('crypto', { randomUUID: () => String(Math.random()) });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manual Entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run procurement evaluation' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reject as Owner' })).toBeTruthy());
+
+    // Click reject without reason
+    fireEvent.click(screen.getByRole('button', { name: 'Reject as Owner' }));
+
+    // Should display validation error
+    expect(screen.getByText('A decision reason is mandatory when rejecting a proposal.')).toBeTruthy();
+  });
+});
+
+describe('Phase 5 AI Supplier Quote Intelligence UI', () => {
+  it('extracts raw supplier quote, displays candidates with status and confidence, and evaluates cost', async () => {
+    const rawMsg = 'MS sheet 2 mm, 500 kg, ₹95/kg plus GST 18%, separate freight ₹1,500, deliver in 2 days, validity 7 days.';
+    const qResp = {
+      id: 'quote-1',
+      supplierId: 'sup-1',
+      revisionId: 'rev-1',
+      revision: 1,
+      state: 'EXTRACTED',
+      rawMessage: rawMsg,
+      completenessStatus: 'COMPLETE',
+      missingFields: [],
+      fields: { unitPrice: '95.00', quotedQuantity: '500.0000', unit: 'kg' }
+    };
+
+    const extractionResult = {
+      quoteRevisionId: 'rev-1',
+      candidates: {
+        unitPrice: { value: '95.00', confidence: 0.95, evidence: '₹95/kg', source: 'EXTRACTED', status: 'EXTRACTED' },
+        quotedQuantity: { value: '500.0000', confidence: 0.95, evidence: '500 kg', source: 'EXTRACTED', status: 'EXTRACTED' },
+        unit: { value: 'kg', confidence: 0.95, evidence: 'kg', source: 'EXTRACTED', status: 'EXTRACTED' },
+        materialTaxRate: { value: '18', confidence: 0.95, evidence: '18%', source: 'EXTRACTED', status: 'EXTRACTED' },
+        priceBasis: { value: 'EXCLUSIVE', confidence: 0.95, evidence: 'plus GST', source: 'EXTRACTED', status: 'EXTRACTED' },
+        freightBasis: { value: 'SEPARATE', confidence: 0.95, evidence: 'separate freight ₹1,500', source: 'EXTRACTED', status: 'EXTRACTED' },
+        freightAmount: { value: '1500.00', confidence: 0.95, evidence: 'separate freight ₹1,500', source: 'EXTRACTED', status: 'EXTRACTED' }
+      },
+      missingFields: [],
+      ambiguities: [],
+      provider: 'mock',
+      model: 'gpt-4o-mini',
+      promptVersion: 'v1.1.0',
+      validationStatus: 'VALID',
+      validationErrors: []
+    };
+
+    const propPending = {
+      id: 'prop-1',
+      type: 'SUPPLIER_AWARD',
+      status: 'PENDING',
+      snapshotHash: 'hash-1234567890abcdef'
+    };
+
+    const responses = [
+      // 1. materials
+      { items: [{ id: 'mat-1', name: 'MS sheet', specification: '2mm', base_unit: 'kg' }] },
+      // 2. addSupplier
+      { id: 'sup-1', name: 'Synthetic Steel Supplier A', location: 'Synthetic demo', isSynthetic: true, active: true },
+      // 3. createRfq
+      { id: 'rfq-1', materialId: 'mat-1', specification: '2 mm IS 2062 mild-steel sheet', quantity: '500.0000', unit: 'kg', requiredProcurementDeliveryAt: new Date().toISOString(), referenceAt: new Date().toISOString(), timezone: 'Asia/Kolkata', status: 'OPEN' },
+      // 4. addQuote (raw)
+      qResp,
+      // 5. extractQuote
+      extractionResult,
+      // 6. getQuote (refresh)
+      qResp,
+      // 7. completeness
+      { complete: true, missingFields: [] },
+      // 8. evaluate
+      { id: 'eval-1', rfqId: 'rfq-1', quoteRevisionId: 'rev-1', status: 'COMPLETE', calculationVersion: '1.1', snapshotSha256: 'abc123', inputSnapshot: {}, result: { purchaseQuantity: '500.0000', materialBase: '47500.00', materialGst: '8550.00', freightBase: '1500.00', freightGst: '0.00', economicLandedCost: '57550.00', cashPayable: '57550.00' } },
+      // 9. createAwardProposal
+      propPending,
+      // 10. getApprovalDetail
+      { proposal: propPending, decisions: [], snapshot: {} }
+    ];
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(responses.shift()), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })));
+    vi.stubGlobal('crypto', { randomUUID: () => String(Math.random()) });
+
+    render(<App />);
+
+    // Verify untrusted supplier text badge is visible
+    expect(screen.getByText('RAW UNTRUSTED SUPPLIER TEXT')).toBeTruthy();
+
+    // Click Extract Quote with AI
+    fireEvent.click(screen.getByRole('button', { name: 'Extract Quote with AI' }));
+
+    // Wait for Extraction Review Card
+    await waitFor(() => expect(screen.getByText('AI Extraction & Commercial Validation')).toBeTruthy());
+    expect(screen.getByText('VALIDATION: VALID')).toBeTruthy();
+    expect(screen.getByText('unitPrice')).toBeTruthy();
+    expect(screen.getByText('95.00')).toBeTruthy();
+    expect(screen.getAllByText('EXTRACTED').length).toBeGreaterThan(0);
+
+    // Run deterministic evaluation
+    fireEvent.click(screen.getByRole('button', { name: 'Run Deterministic Landed Cost Evaluation' }));
+
+    await waitFor(() => expect(screen.getByText('Cost Breakdown')).toBeTruthy());
+    expect(screen.getAllByText('₹57550.00')).toHaveLength(2);
+    expect(screen.getByText('AWAITING OWNER APPROVAL')).toBeTruthy();
+  });
+
+  it('generates clarification draft and simulates supplier response to produce complete revision', async () => {
+    const rawMsg = 'MS sheet 2mm, 500 kg, ₹96 per kg, delivery tomorrow, freight included.';
+    const qRespIncomplete = {
+      id: 'quote-1',
+      supplierId: 'sup-1',
+      revisionId: 'rev-1',
+      revision: 1,
+      state: 'EXTRACTED',
+      rawMessage: rawMsg,
+      completenessStatus: 'INCOMPLETE',
+      missingFields: ['materialTaxRate', 'priceBasis', 'validUntil'],
+      fields: { unitPrice: '96.00', quotedQuantity: '500.0000', unit: 'kg' }
+    };
+
+    const extractionIncomplete = {
+      quoteRevisionId: 'rev-1',
+      candidates: {
+        unitPrice: { value: '96.00', confidence: 0.95, evidence: '₹96 per kg', source: 'EXTRACTED', status: 'EXTRACTED' },
+        materialTaxRate: { value: null, confidence: null, evidence: null, source: 'UNKNOWN', status: 'MISSING' },
+        priceBasis: { value: null, confidence: null, evidence: null, source: 'UNKNOWN', status: 'MISSING' },
+        validUntil: { value: null, confidence: null, evidence: null, source: 'UNKNOWN', status: 'MISSING' }
+      },
+      missingFields: ['materialTaxRate', 'priceBasis', 'validUntil'],
+      ambiguities: [],
+      provider: 'mock',
+      model: 'gpt-4o-mini',
+      promptVersion: 'v1.1.0',
+      validationStatus: 'VALID',
+      validationErrors: []
+    };
+
+    const draft = {
+      id: 'draft-1',
+      quoteRevisionId: 'rev-1',
+      draft: 'Dear Supplier,\n\nCould you please clarify:\n1. GST Rate & Tax Basis\n2. Quote Validity\n\nDraft only - not sent externally.',
+      expectedFields: ['materialTaxRate', 'priceBasis', 'validUntil'],
+      createdAt: new Date().toISOString(),
+      status: 'DRAFT'
+    };
+
+    const qRespComplete = {
+      id: 'quote-1',
+      supplierId: 'sup-1',
+      revisionId: 'rev-2',
+      revision: 2,
+      state: 'EXTRACTED',
+      rawMessage: 'GST 18% extra, quotation is valid for 7 days.',
+      completenessStatus: 'COMPLETE',
+      missingFields: [],
+      fields: { unitPrice: '96.00', materialTaxRate: '18', priceBasis: 'EXCLUSIVE' }
+    };
+
+    const extractionComplete = {
+      quoteRevisionId: 'rev-2',
+      candidates: {
+        unitPrice: { value: '96.00', confidence: 0.95, evidence: '₹96 per kg', source: 'EXTRACTED', status: 'EXTRACTED' },
+        materialTaxRate: { value: '18', confidence: 0.95, evidence: '18%', source: 'EXTRACTED', status: 'EXTRACTED' },
+        priceBasis: { value: 'EXCLUSIVE', confidence: 0.95, evidence: 'GST 18% extra', source: 'EXTRACTED', status: 'EXTRACTED' }
+      },
+      missingFields: [],
+      ambiguities: [],
+      provider: 'mock',
+      model: 'gpt-4o-mini',
+      promptVersion: 'v1.1.0',
+      validationStatus: 'VALID',
+      validationErrors: []
+    };
+
+    const responses = [
+      // 1. materials
+      { items: [{ id: 'mat-1', name: 'MS sheet', specification: '2mm', base_unit: 'kg' }] },
+      // 2. addSupplier
+      { id: 'sup-1', name: 'Synthetic Steel Supplier A', location: 'Synthetic demo', isSynthetic: true, active: true },
+      // 3. createRfq
+      { id: 'rfq-1', materialId: 'mat-1', specification: '2 mm IS 2062 mild-steel sheet', quantity: '500.0000', unit: 'kg', requiredProcurementDeliveryAt: new Date().toISOString(), referenceAt: new Date().toISOString(), timezone: 'Asia/Kolkata', status: 'OPEN' },
+      // 4. addQuote
+      qRespIncomplete,
+      // 5. extractQuote
+      extractionIncomplete,
+      // 6. getQuote
+      qRespIncomplete,
+      // 7. createClarification
+      draft,
+      // 8. respondClarification
+      qRespComplete,
+      // 9. getExtraction (rev 2)
+      extractionComplete
+    ];
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(responses.shift()), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })));
+    vi.stubGlobal('crypto', { randomUUID: () => String(Math.random()) });
+
+    render(<App />);
+
+    // Click Extract Quote with AI
+    fireEvent.click(screen.getByRole('button', { name: 'Extract Quote with AI' }));
+
+    // Wait for Incomplete Quote warning
+    await waitFor(() => expect(screen.getByText('Quote is Incomplete:')).toBeTruthy());
+    expect(screen.getByText('Draft Clarification Request')).toBeTruthy();
+
+    // Click Draft Clarification Request
+    fireEvent.click(screen.getByRole('button', { name: 'Draft Clarification Request' }));
+
+    // Verify draft banner
+    await waitFor(() => expect(screen.getByText('DRAFT ONLY — NOT SENT EXTERNALLY')).toBeTruthy());
+    expect(screen.getByText(/Could you please clarify/)).toBeTruthy();
+
+    // Simulate supplier reply
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate Supplier Reply' }));
+
+    // Wait for Revision 2 complete state
+    await waitFor(() => expect(screen.getByText('Quote Revision 2 · Completeness:')).toBeTruthy());
+  });
+});
+
+describe('Phase 6 Commercial & Quotations UI and Guided E2E Demo', () => {
+  it('switches between tabs and displays commercial, approvals, and guided demo sections', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (typeof url === 'string' && url.includes('/approvals/pending')) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (typeof url === 'string' && url.includes('/customer-enquiries')) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+    vi.stubGlobal('crypto', { randomUUID: () => 'uuid-1234' });
+
+    render(<App />);
+
+    // 1. Switch to Dashboard tab
+    fireEvent.click(screen.getByRole('button', { name: /Dashboard/ }));
+    expect(screen.getByText('MUNIM Business Operations Dashboard')).toBeTruthy();
+    expect(screen.getByText('Customer Enquiries')).toBeTruthy();
+    expect(screen.getByText('Pending Approvals')).toBeTruthy();
+
+    // 2. Switch to Commercial & Quotations tab
+    fireEvent.click(screen.getByRole('button', { name: /Commercial & Quotations/ }));
+    expect(screen.getByText('Customer Enquiries')).toBeTruthy();
+    expect(screen.getByText('Create New Customer Enquiry')).toBeTruthy();
+    expect(screen.getByText('Create Customer Enquiry & Initialize BOM')).toBeTruthy();
+
+    // 3. Switch to Approvals Gateway tab
+    fireEvent.click(screen.getByRole('button', { name: /Approvals Gateway/ }));
+    expect(screen.getByText('Commercial Approvals Gateway')).toBeTruthy();
+    expect(screen.getByText('Proposal Snapshot & Decision Panel')).toBeTruthy();
+
+    // 4. Switch to Guided E2E Demo tab
+    fireEvent.click(screen.getByRole('button', { name: /Guided E2E Demo/ }));
+    expect(screen.getByText('Guided End-to-End Demonstration')).toBeTruthy();
+    expect(screen.getByText('1. RFQ Creation')).toBeTruthy();
+    expect(screen.getByText('7. Owner Approval')).toBeTruthy();
+  });
+
+  it('runs 1-click guided E2E demo and updates stepper', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (typeof url === 'string' && url.includes('/materials')) {
+        return new Response(JSON.stringify({ items: [{ id: 'mat-1', name: 'IS 2062 MS Sheet 2mm' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (typeof url === 'string' && url.includes('/suppliers')) {
+        return new Response(JSON.stringify({ id: 'sup-1', name: 'Standard Steel' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (typeof url === 'string' && url.includes('/rfqs')) {
+        return new Response(JSON.stringify({ id: 'rfq-demo-1', materialId: 'mat-1', status: 'OPEN' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ id: 'obj-1', success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+    vi.stubGlobal('crypto', { randomUUID: () => 'uuid-demo' });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Guided E2E Demo/ }));
+    expect(screen.getByText('Guided End-to-End Demonstration')).toBeTruthy();
+
+    // Verify 1-click button is present
+    const runBtn = screen.getByRole('button', { name: /Run Full End-to-End Journey/ });
+    expect(runBtn).toBeTruthy();
+  });
+});
+
