@@ -601,7 +601,7 @@ MUNIM features an exhaustive multi-tier automated test suite:
 │                   MUNIM Verification Suite                   │
 ├───────────────────────────────┬─────────────────────────────┤
 │ 112 / 112 Backend Tests       │ Spring Boot Integration     │
-│ 10 / 10 Frontend Tests        │ Vitest Component & Flow     │
+│ 20 / 20 Frontend Tests        │ Vitest Component & Reliab.  │
 │ 9 / 9 OpenAPI Validation      │ Contract Schema Parity      │
 │ 2 / 2 End-to-End Smoke Tests  │ Shell Integration Scenarios │
 └───────────────────────────────┴─────────────────────────────┘
@@ -627,12 +627,14 @@ mvn test
 | `ProfitabilityEngineTest` | 24 | 100% | Sheet-metal formula validation, machine rates, labor, overheads, margin safety thresholds |
 | **Total Suite** | **112 / 112** | **100%** | **All 9 test suites passing with 0 failures, 0 errors, 0 skipped** |
 
-### 2. Frontend Component & Flow Tests (10 / 10 Passing)
+### 2. Frontend Component & Reliability Tests (20 / 20 Passing)
 ```bash
 cd frontend
-npm test -- --run
+npm test
 ```
-*Validates 10 full test scenarios: manual entry workflow, rejection validation, persona RBAC gating, AI candidate extraction, vendor clarification loop, prompt injection preset, manual textarea prompt injection defense, responsive tab switching, 1-click guided demo stepper, and savings badges edge cases (positive savings, negative price difference, and absent/null badges).*
+*Validates 20 automated tests across 2 dedicated test suites:*
+- **Component & Commercial Flows (`ui.test.tsx` — 10 Tests):** Manual quote intake, rejection mandatory justifications, persona RBAC gating, AI candidate extraction, vendor clarification drafting, prompt injection presets, manual textarea injection containment, responsive tab navigation, 1-click guided demonstration execution, and savings badge variations (positive savings, negative difference, absent badges).
+- **API Reliability & Failure Recovery (`reliability.test.tsx` — 10 Tests):** Network failure and backend-down user messaging with retry button; 403 Forbidden handling and non-owner read-only notice; 422 validation guidance on `AWARDED_QUOTE`; 409 cryptographic state conflict handling; Dashboard metric consistency (0 breaches = 0 alerts and compliant state); dynamic Active Enquiry counter excluding WON and LOST; filter-aware empty states in Approvals queue; Guided Demo preflight failure messaging; Guided Demo step failure with single-step retry without state reset; and synthetic demonstration disclaimer indicators.
 
 ### 3. Automated OpenAPI 3.1.0 Contract Validator (9 / 9 Passing)
 ```bash

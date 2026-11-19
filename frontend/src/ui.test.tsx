@@ -567,7 +567,7 @@ describe('Phase 6 Commercial & Quotations UI and Guided E2E Demo', () => {
     // 1. Switch to Dashboard tab
     fireEvent.click(screen.getByRole('button', { name: /Dashboard/ }));
     expect(screen.getByText('MUNIM Business Operations Dashboard')).toBeTruthy();
-    expect(screen.getByText('Customer Enquiries')).toBeTruthy();
+    expect(screen.getByText('Active Enquiries')).toBeTruthy();
     expect(screen.getByText('Pending Approvals')).toBeTruthy();
 
     // 2. Switch to Commercial tab
@@ -594,6 +594,12 @@ describe('Phase 6 Commercial & Quotations UI and Guided E2E Demo', () => {
       const urlStr = typeof url === 'string' ? url : (url as Request).url;
       const method = init?.method || 'GET';
 
+      if (urlStr.includes('/actuator/health')) {
+        return new Response(JSON.stringify({ status: 'UP' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/demo/seed')) {
+        return new Response(JSON.stringify({ status: 'SUCCESS', message: 'Demo data seeded' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
       if (urlStr.includes('/materials')) {
         return new Response(JSON.stringify({ items: [{ id: 'mat-1', name: 'IS 2062 MS Sheet 2mm' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
@@ -677,13 +683,13 @@ describe('Phase 6 Commercial & Quotations UI and Guided E2E Demo', () => {
     fireEvent.click(screen.getByRole('button', { name: /Guided Demo/ }));
     expect(screen.getByText('Guided End-to-End Demonstration')).toBeTruthy();
 
-    const runBtn = screen.getByRole('button', { name: /Run Full End-to-End Journey/ });
+    const runBtn = screen.getByRole('button', { name: /Run Full Guided Demonstration/ });
     expect(runBtn).toBeTruthy();
 
     fireEvent.click(runBtn);
 
     // Wait for the journey to complete step 7 and show the celebration value card
-    await waitFor(() => expect(screen.getByText('Autonomous Journey Value Delivered')).toBeTruthy(), { timeout: 4000 });
+    await waitFor(() => expect(screen.getByText('Commercial Value Delivered (Owner Governed)')).toBeTruthy(), { timeout: 4000 });
     expect(screen.getByText('VERIFIED COMMERCIAL IMPACT')).toBeTruthy();
     expect(screen.getByText('Raw Material Landed Savings')).toBeTruthy();
     expect(screen.getByText('₹ 7,780.00')).toBeTruthy();

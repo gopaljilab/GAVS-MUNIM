@@ -158,7 +158,7 @@ async function run() {
     await client.eval(`document.querySelectorAll('.nav-tab')[4].click()`);
     await sleep(1500);
     await client.eval(`(() => {
-      const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Run Full End-to-End Journey'));
+      const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && (b.textContent.includes('Run Full Guided Demonstration') || b.textContent.includes('Run Full End-to-End Journey')));
       if (btn) btn.click();
     })()`);
     console.log('Waiting for autonomous journey to complete (14s)...');

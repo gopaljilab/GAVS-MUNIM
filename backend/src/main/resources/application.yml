@@ -12,6 +12,10 @@ management:
     web:
       exposure:
         include: health,info
+      cors:
+        allowed-origin-patterns: "*"
+        allowed-methods: "*"
+        allowed-headers: "*"
 server:
   port: ${PORT:8080}
 munim:

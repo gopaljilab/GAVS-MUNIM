@@ -13,9 +13,13 @@ import java.util.UUID;
 @Component
 public class DemoAuthFilter extends OncePerRequestFilter {
     @Override protected void doFilterInternal(HttpServletRequest req,HttpServletResponse res,FilterChain chain) throws ServletException,IOException {
+        setCorsHeaders(req, res);
+        if (req.getMethod().equals("OPTIONS")) {
+            res.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
         String path=req.getRequestURI();
         if (!path.startsWith("/api/v1/")) { chain.doFilter(req,res); return; }
-        if (req.getMethod().equals("OPTIONS")) { chain.doFilter(req,res); return; }
         String auth=req.getHeader("Authorization");
         String role=auth==null?null:switch(auth) {
             case "Bearer dev-owner" -> "OWNER";
@@ -23,18 +27,30 @@ public class DemoAuthFilter extends OncePerRequestFilter {
             case "Bearer dev-evaluator" -> "READ_ONLY_EVALUATOR";
             default -> null;
         };
-        if(role==null){writeProblem(res,401,"UNAUTHORIZED","Bearer token required");return;}
+        if(role==null){writeProblem(req,res,401,"UNAUTHORIZED","Bearer token required");return;}
         Set<String> allowed=allowed(req.getMethod(),path);
-        if(!allowed.isEmpty()&&!allowed.contains(role)){writeProblem(res,403,"FORBIDDEN","Insufficient role");return;}
+        if(!allowed.isEmpty()&&!allowed.contains(role)){writeProblem(req,res,403,"FORBIDDEN","Insufficient role");return;}
         if(path.startsWith("/api/v1/demo")){
             String demoEnabled=System.getenv("MUNIM_DEMO_ENABLED");
-            if("false".equalsIgnoreCase(demoEnabled)){writeProblem(res,403,"DEMO_DISABLED","Demo seeding is disabled in this environment");return;}
+            if("false".equalsIgnoreCase(demoEnabled)){writeProblem(req,res,403,"DEMO_DISABLED","Demo seeding is disabled in this environment");return;}
         }
         req.setAttribute("actorRole",role);
         req.setAttribute("actorId",auth.substring("Bearer ".length()));
         chain.doFilter(req,res);
     }
-    private void writeProblem(HttpServletResponse res,int status,String code,String detail)throws IOException{
+    private void setCorsHeaders(HttpServletRequest req, HttpServletResponse res) {
+        String origin = req.getHeader("Origin");
+        if (origin != null && !origin.isBlank()) {
+            res.setHeader("Access-Control-Allow-Origin", origin);
+            res.setHeader("Access-Control-Allow-Credentials", "true");
+            res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+            res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key, Origin, Accept, X-Requested-With");
+            res.setHeader("Access-Control-Max-Age", "600");
+            res.setHeader("Vary", "Origin");
+        }
+    }
+    private void writeProblem(HttpServletRequest req,HttpServletResponse res,int status,String code,String detail)throws IOException{
+        setCorsHeaders(req, res);
         res.setStatus(status);res.setContentType("application/problem+json");
         res.getWriter().write("{\"type\":\"about:blank\",\"title\":\""+(status==401?"Unauthorized":"Forbidden")+"\",\"status\":"+status+",\"detail\":\""+detail+"\",\"code\":\""+code+"\",\"fieldErrors\":{},\"traceId\":\""+UUID.randomUUID()+"\"}");
     }
