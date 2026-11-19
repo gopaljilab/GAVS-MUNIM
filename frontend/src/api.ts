@@ -127,7 +127,7 @@ export const api={
   materials:()=>req<{items:Array<{id:string;name:string;grade?:string|null;specification:string;baseUnit:string;active:boolean}>}>('/materials',{headers:h()}),
   addSupplier:(name:string)=>req<Supplier>('/suppliers',{method:'POST',headers:h(crypto.randomUUID()),body:JSON.stringify({name,location:'Synthetic demo',isSynthetic:true})}),
   createRfq:(data:object)=>req<Rfq>('/rfqs',{method:'POST',headers:h(crypto.randomUUID()),body:JSON.stringify(data)}),
-  addQuote:(id:string,data:object)=>req<Quote>('/rfqs/'+id+'/quotes',{method:'POST',headers:h(crypto.randomUUID()),body:JSON.stringify(data)}),
+  addQuote:(id:string,data:object)=>req<Quote>('/rfqs/'+id+'/quotes',{method:'POST',headers:h(crypto.randomUUID()),body:JSON.stringify({manualFields:{},...data})}),
   getQuote:(id:string,revision:number)=>req<Quote>('/quotes/'+id+'/revisions/'+revision,{headers:h()}),
   extractQuote:(quoteId:string,revision:number)=>
     req<ExtractionResult>('/quotes/'+quoteId+'/revisions/'+revision+'/extract',{method:'POST',headers:h(crypto.randomUUID()),body:'{}'}),

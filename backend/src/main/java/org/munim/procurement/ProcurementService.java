@@ -80,12 +80,12 @@ public class ProcurementService {
                 (rs,n)->new Object[]{read(rs.getString("fields")),rs.getString("raw_message_sha256"),rs.getBigDecimal("quantity"),rs.getString("unit"),rs.getObject("required_procurement_delivery_at",OffsetDateTime.class)},rfqId,revisionId);
         Map<String,Object> fields=(Map<String,Object>)row[0];
         OffsetDateTime evaluationAt=OffsetDateTime.now();
-        OffsetDateTime promised=OffsetDateTime.parse(fields.get("promisedDeliveryAt").toString());
-        OffsetDateTime validFrom=OffsetDateTime.parse(fields.get("validFrom").toString());
-        OffsetDateTime validUntil=OffsetDateTime.parse(fields.get("validUntil").toString());
+        OffsetDateTime promised=fields.get("promisedDeliveryAt")!=null?OffsetDateTime.parse(fields.get("promisedDeliveryAt").toString()):null;
+        OffsetDateTime validFrom=fields.get("validFrom")!=null?OffsetDateTime.parse(fields.get("validFrom").toString()):evaluationAt;
+        OffsetDateTime validUntil=fields.get("validUntil")!=null?OffsetDateTime.parse(fields.get("validUntil").toString()):null;
         OffsetDateTime required=(OffsetDateTime)row[4];
-        if(promised.isAfter(required))throw new IllegalStateException("Supplier delivery is after required procurement deadline");
-        if(evaluationAt.isBefore(validFrom)||evaluationAt.isAfter(validUntil))throw new IllegalStateException("Supplier quote is not valid at evaluation time");
+        if(promised!=null&&required!=null&&promised.isAfter(required))throw new IllegalStateException("Supplier delivery is after required procurement deadline");
+        if(validUntil!=null&&(evaluationAt.isBefore(validFrom)||evaluationAt.isAfter(validUntil)))throw new IllegalStateException("Supplier quote is not valid at evaluation time");
         Set<String> missing=evaluator.missing(fields,(String)row[3],(java.math.BigDecimal)row[2]);
         if(!missing.isEmpty())throw new FinancialEvaluator.IncompleteQuoteException(missing);
         var result=evaluator.evaluate(fields,(java.math.BigDecimal)row[2],(String)row[3]);

@@ -298,7 +298,8 @@ export function App() {
         supplierId: s.id,
         receivedAt,
         channel: 'PASTED_TEXT',
-        rawMessage: rawMessage.trim()
+        rawMessage: rawMessage.trim(),
+        manualFields: {}
       });
 
       const ext = await api.extractQuote(created.id, created.revision);
@@ -793,7 +794,11 @@ export function App() {
         supplierId: supplierMahalaxmi.id,
         receivedAt: new Date().toISOString(),
         channel: 'WHATSAPP_PASTE',
-        rawMessage: 'Rate ₹92/kg for 500 kg MS sheet 2mm, delivery 2 days, freight ₹2,500 extra, no GST bill / composition scheme (non-creditable ITC).'
+        rawMessage: 'Rate ₹92/kg for 500 kg MS sheet 2mm, delivery 2 days, validity 7 days, freight ₹2,500 extra, plus 18% GST extra (composition scheme, non-creditable ITC).',
+        manualFields: {
+          materialItcStatus: 'NON_CREDITABLE',
+          freightItcStatus: 'NON_CREDITABLE'
+        }
       });
       await api.extractQuote(quoteMahalaxmi.id, quoteMahalaxmi.revision);
       const readyMahalaxmi = await api.getQuote(quoteMahalaxmi.id, quoteMahalaxmi.revision);
@@ -805,7 +810,11 @@ export function App() {
         supplierId: supplierApex.id,
         receivedAt: new Date().toISOString(),
         channel: 'WHATSAPP_PASTE',
-        rawMessage: 'MS sheet 2 mm, 500 kg, ₹95/kg plus GST 18%, separate freight ₹1,500, deliver in 2 days, validity 7 days.'
+        rawMessage: 'MS sheet 2 mm, 500 kg, ₹95/kg plus GST 18%, separate freight ₹1,500, deliver in 2 days, validity 7 days.',
+        manualFields: {
+          materialItcStatus: 'CREDITABLE',
+          freightItcStatus: 'CREDITABLE'
+        }
       });
       const ext = await api.extractQuote(createdQuote.id, createdQuote.revision);
       const readyQuote = await api.getQuote(createdQuote.id, createdQuote.revision);
@@ -883,7 +892,8 @@ export function App() {
       const itemCosts = snap.bomItemCosts || snap.items || [];
       const scrapTotal = itemCosts.reduce((acc: number, it: any) => acc + (parseFloat(String(it.scrapCredit || 0)) * parseFloat(costRes.batchQuantity || '100')), 0);
       setDemoScrapRecovery(scrapTotal > 0 ? Math.round(scrapTotal) : Math.round(parseFloat(costRes.batchQuantity || '100') * 2.5 * 0.10 * 25));
-      setDemoMarginPct(costRes.targetMargin ? parseFloat(costRes.targetMargin) * 100 : 20.0);
+      const parsedMargin = costRes.targetMargin ? parseFloat(costRes.targetMargin) : 20.0;
+      setDemoMarginPct(parsedMargin < 1.0 ? parsedMargin * 100 : parsedMargin);
       log(`Deterministic Costing complete: Total Cost ₹${costRes.totalCost}, Target Price ₹${costRes.targetPrice} (${costRes.marginClassification}).`);
       setDemoStep(6);
 
