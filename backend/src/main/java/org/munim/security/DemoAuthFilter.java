@@ -26,6 +26,10 @@ public class DemoAuthFilter extends OncePerRequestFilter {
         if(role==null){writeProblem(res,401,"UNAUTHORIZED","Bearer token required");return;}
         Set<String> allowed=allowed(req.getMethod(),path);
         if(!allowed.isEmpty()&&!allowed.contains(role)){writeProblem(res,403,"FORBIDDEN","Insufficient role");return;}
+        if(path.startsWith("/api/v1/demo")){
+            String demoEnabled=System.getenv("MUNIM_DEMO_ENABLED");
+            if("false".equalsIgnoreCase(demoEnabled)){writeProblem(res,403,"DEMO_DISABLED","Demo seeding is disabled in this environment");return;}
+        }
         req.setAttribute("actorRole",role);
         req.setAttribute("actorId",auth.substring("Bearer ".length()));
         chain.doFilter(req,res);

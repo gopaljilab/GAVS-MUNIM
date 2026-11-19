@@ -767,6 +767,8 @@ export function App() {
 
     try {
       log('Starting MUNIM End-to-End Autonomous Commercial Journey…');
+      log('Preparing pristine demo environment…');
+      await api.seedDemoData();
 
       // Step 1: Procurement RFQ
       log('Step 1: Ingesting Material & Creating Procurement RFQ for 500 kg mild-steel sheet…');
@@ -787,7 +789,7 @@ export function App() {
       setDemoStep(2);
 
       // Step 2: AI Supplier Quote Intake & Multi-Quote Extraction
-      log('Step 2: Processing raw untrusted WhatsApp supplier quotes via AI Extraction Engine…');
+      log('Step 2: Ingesting raw untrusted WhatsApp supplier quotes via AI Extraction Engine (operator confirms GST ITC eligibility)…');
       
       // Competitor 1: Mahalaxmi Metals (WhatsApp bait: ₹92/kg, but non-creditable tax sink + ₹2,500 freight)
       const quoteMahalaxmi = await api.addQuote(newRfq.id, {
@@ -2696,7 +2698,7 @@ export function App() {
                 </div>
                 <div className="demo-value-item">
                   <div className="demo-value-num">{(demoMarginPct ?? 20).toFixed(1)}%</div>
-                  <div className="demo-value-label">Net Profit Margin Protected</div>
+                  <div className="demo-value-label">Target Profit Margin Met</div>
                 </div>
                 <div className="demo-value-item">
                   <div className="demo-value-num">SHA-256</div>

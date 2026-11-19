@@ -452,6 +452,21 @@ public class ProcurementIntegrationTest {
                 .content(mapper.writeValueAsString(evalIncomplete)))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("QUOTE_INCOMPLETE"));
+
+        // 5. Reject evaluation of quote missing validUntil (422 QUOTE_INCOMPLETE, never 500 NPE)
+        Map<String, Object> noValidity = standardQuoteFields();
+        noValidity.remove("validUntil");
+        QuoteView noValidityQuote = createTestQuote(rfqId, supplierId, noValidity);
+
+        EvaluationCreate evalNoValidity = new EvaluationCreate(List.of(noValidityQuote.revisionId()), 1);
+        mockMvc.perform(post("/api/v1/rfqs/" + rfqId + "/evaluations")
+                .header("Authorization", "Bearer dev-procurement")
+                .header("Idempotency-Key", idempotencyKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(evalNoValidity)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("QUOTE_INCOMPLETE"))
+                .andExpect(jsonPath("$.fieldErrors.validUntil").value("Required or unresolved"));
     }
 
     // Scenario 11: Verify Foreign-Key Enforcement

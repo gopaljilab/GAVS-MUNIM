@@ -4,6 +4,7 @@ import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.munim.api.ApiDtos.*;
 import org.munim.profitability.CommercialDtos.*;
 import org.munim.profitability.ProfitabilityDtos.OperationCostInput;
 import org.munim.profitability.ProfitabilityDtos.SourcingBasis;
@@ -712,5 +713,137 @@ public class CommercialWorkflowIntegrationTest {
         mockMvc.perform(get("/api/v1/customer-enquiries")
                         .header("Authorization", "Bearer dev-evaluator"))
                 .andExpect(status().isOk());
+    }
+
+    // ==========================================
+    // 6. Guided Demo Commercial Journey Replay
+    // ==========================================
+
+    @Test
+    @DisplayName("6.1 Guided Demo E2E Replay: Enquiry -> BOM -> Costing -> Quotation -> Owner Approval Gateway")
+    void test11_guidedDemoFullCommercialJourneyReplay() throws Exception {
+        // Step 4 of Guided Demo: Customer Enquiry intake
+        EnquiryCreate enquiryReq = new EnquiryCreate(
+                "Defence Chassis Corp (Demo Test)",
+                "PO-DCC-REPLAY-001",
+                "orders@defencechassis.in",
+                "+91-9876543210",
+                OffsetDateTime.now().plusDays(45),
+                "High precision laser cut chassis brackets"
+        );
+        MvcResult enqRes = mockMvc.perform(post("/api/v1/customer-enquiries")
+                        .header("Authorization", "Bearer dev-procurement")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(enquiryReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        CustomerEnquiryView enq = mapper.readValue(enqRes.getResponse().getContentAsString(), CustomerEnquiryView.class);
+        assertNotNull(enq.id());
+
+        // Step 5 of Guided Demo: BOM Creation & Sourcing from Awarded Quote
+        BomCreate bomReq = new BomCreate(1, new BigDecimal("100.0000"));
+        MvcResult bomRes = mockMvc.perform(post("/api/v1/customer-enquiries/" + enq.id() + "/boms")
+                        .header("Authorization", "Bearer dev-procurement")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(bomReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        BomView bom = mapper.readValue(bomRes.getResponse().getContentAsString(), BomView.class);
+        assertNotNull(bom.id());
+
+        BomItemCreate itemReq = new BomItemCreate(
+                materialId,
+                "Armoured Chassis Bracket 5mm",
+                new BigDecimal("2.5000"),
+                "kg",
+                new BigDecimal("10.00"),
+                true,
+                new BigDecimal("25.00"),
+                SourcingBasis.AWARDED_QUOTE,
+                awardedRevisionId,
+                null,
+                null
+        );
+        MvcResult itemRes = mockMvc.perform(post("/api/v1/boms/" + bom.id() + "/items")
+                        .header("Authorization", "Bearer dev-procurement")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(itemReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        BomItemView bomItem = mapper.readValue(itemRes.getResponse().getContentAsString(), BomItemView.class);
+        assertNotNull(bomItem.id());
+
+        // Deterministic Costing Run (CNC Laser + Press Brake, 20% margin)
+        CostingRunRequest costReq = new CostingRunRequest(
+                List.of(
+                        new OperationCostInput("CNC Laser Cutting", new BigDecimal("1.0000"), new BigDecimal("600.00"), new BigDecimal("0.0800"), new BigDecimal("900.00"), new BigDecimal("0.1000"), new BigDecimal("350.00")),
+                        new OperationCostInput("Press Brake Bending", new BigDecimal("0.5000"), new BigDecimal("400.00"), new BigDecimal("0.0500"), new BigDecimal("600.00"), new BigDecimal("0.0800"), new BigDecimal("300.00"))
+                ),
+                new BigDecimal("0.2000"),
+                new BigDecimal("15.00"),
+                new BigDecimal("20.00"),
+                new BigDecimal("0.2000"),
+                new BigDecimal("0.1000"),
+                null,
+                new BigDecimal("18.00"),
+                List.of(new ItemTaxInput(bomItem.id(), "CREDITABLE", new BigDecimal("18.00")))
+        );
+        MvcResult costRes = mockMvc.perform(post("/api/v1/boms/" + bom.id() + "/costings")
+                        .header("Authorization", "Bearer dev-procurement")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(costReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        CostingSheetView costing = mapper.readValue(costRes.getResponse().getContentAsString(), CostingSheetView.class);
+        assertNotNull(costing.id());
+        assertNotNull(costing.snapshotSha256());
+        assertEquals("20.00", costing.targetMargin().toPlainString());
+
+        // Step 6 of Guided Demo: Customer Quotation Snapshot
+        QuotationCreate quoteReq = new QuotationCreate(
+                costing.id(),
+                OffsetDateTime.now().minusHours(1),
+                OffsetDateTime.now().plusDays(30),
+                "50% Advance, 50% on Delivery",
+                costing.targetPrice(),
+                new BigDecimal("18.00")
+        );
+        MvcResult quoteRes = mockMvc.perform(post("/api/v1/customer-quotations")
+                        .header("Authorization", "Bearer dev-procurement")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(quoteReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        CustomerQuotationView quotation = mapper.readValue(quoteRes.getResponse().getContentAsString(), CustomerQuotationView.class);
+        assertNotNull(quotation.id());
+
+        // Submit to Approvals Gateway with immutable SHA-256 snapshot
+        QuotationApprovalSubmission submissionReq = new QuotationApprovalSubmission(costing.snapshotSha256(), "Submit for owner review");
+        MvcResult propRes = mockMvc.perform(post("/api/v1/customer-quotations/" + quotation.id() + "/submit-approval")
+                        .header("Authorization", "Bearer dev-procurement")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(submissionReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        ProposalView proposal = mapper.readValue(propRes.getResponse().getContentAsString(), ProposalView.class);
+        assertNotNull(proposal.id());
+        assertEquals("PENDING", proposal.status());
+
+        // Step 7 of Guided Demo: Owner Human Approval
+        DecisionCreate decision = new DecisionCreate("APPROVE", "Quotation approved at target 20% margin with audited costing snapshot", proposal.snapshotHash());
+        mockMvc.perform(post("/api/v1/approvals/" + proposal.id() + "/decision")
+                        .header("Authorization", "Bearer dev-owner")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(decision)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decision").value("APPROVE"));
+
+        // Verify quotation status is atomically APPROVED
+        mockMvc.perform(get("/api/v1/customer-quotations/" + quotation.id())
+                        .header("Authorization", "Bearer dev-owner"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.approvalStatus").value("APPROVED"));
     }
 }
