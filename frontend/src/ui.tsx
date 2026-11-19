@@ -149,15 +149,20 @@ export function App() {
   // --- Search & Filter for Customer Enquiries ---
   const [enquirySearch, setEnquirySearch] = useState('');
 
+  function switchTab(tab: 'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'DEMO') {
+    setError('');
+    setActiveTab(tab);
+  }
+
   // Keyboard shortcut listener (1-5 to switch tabs)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
-      if (e.key === '1') setActiveTab('PROCUREMENT');
-      if (e.key === '2') setActiveTab('COMMERCIAL');
-      if (e.key === '3') setActiveTab('APPROVALS');
-      if (e.key === '4') setActiveTab('DASHBOARD');
-      if (e.key === '5') setActiveTab('DEMO');
+      if (e.key === '1') switchTab('PROCUREMENT');
+      if (e.key === '2') switchTab('COMMERCIAL');
+      if (e.key === '3') switchTab('APPROVALS');
+      if (e.key === '4') switchTab('DASHBOARD');
+      if (e.key === '5') switchTab('DEMO');
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -649,6 +654,7 @@ export function App() {
         gstRate: '18.00'
       }));
 
+      const safeQuotePrice = String(quoteSellingPrice || '').trim();
       const res = await api.runCosting(selectedBom.id, {
         operations,
         overheadMultiplier: overheadMult,
@@ -656,13 +662,13 @@ export function App() {
         outboundFreightPerPart: freightPerPart,
         targetMargin: targetMargin,
         minimumMargin: minMargin,
-        quotedSellingPrice: quoteSellingPrice.trim() ? quoteSellingPrice.trim() : null,
+        quotedSellingPrice: safeQuotePrice ? safeQuotePrice : null,
         outputGstRate: '18.00',
         itemTaxInputs: itemTaxes
       });
 
       setCosting(res);
-      setQuoteSellingPrice(res.targetPrice);
+      setQuoteSellingPrice(res.targetPrice != null ? String(res.targetPrice) : '');
 
       // Refresh enquiry state to COSTED
       const updatedEnq = await api.getEnquiry(selectedEnquiry.id);
@@ -681,7 +687,8 @@ export function App() {
     setBusy(true);
     setError('');
     try {
-      const selling = quoteSellingPrice.trim() ? quoteSellingPrice.trim() : costing.targetPrice;
+      const safeSelling = String(quoteSellingPrice || '').trim();
+      const selling = safeSelling ? safeSelling : String(costing.targetPrice);
       const validFrom = new Date().toISOString();
       const validUntil = new Date(Date.now() + 30 * 86400000).toISOString();
 
@@ -1146,7 +1153,7 @@ export function App() {
         <button
           type="button"
           className={`nav-tab ${activeTab === 'PROCUREMENT' ? 'active' : ''}`}
-          onClick={() => setActiveTab('PROCUREMENT')}
+          onClick={() => switchTab('PROCUREMENT')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
           <span className="tab-label">Procurement</span>
@@ -1155,7 +1162,7 @@ export function App() {
         <button
           type="button"
           className={`nav-tab ${activeTab === 'COMMERCIAL' ? 'active' : ''}`}
-          onClick={() => setActiveTab('COMMERCIAL')}
+          onClick={() => switchTab('COMMERCIAL')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M3 7v1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7H3l2-4h14l2 4"/><path d="M5 21V10.85"/><path d="M19 21V10.85"/><path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/></svg>
           <span className="tab-label">Commercial</span>
@@ -1164,7 +1171,7 @@ export function App() {
         <button
           type="button"
           className={`nav-tab ${activeTab === 'APPROVALS' ? 'active' : ''}`}
-          onClick={() => setActiveTab('APPROVALS')}
+          onClick={() => switchTab('APPROVALS')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
           <span className="tab-label">Approvals</span>
@@ -1173,7 +1180,7 @@ export function App() {
         <button
           type="button"
           className={`nav-tab ${activeTab === 'DASHBOARD' ? 'active' : ''}`}
-          onClick={() => setActiveTab('DASHBOARD')}
+          onClick={() => switchTab('DASHBOARD')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
           <span className="tab-label">Dashboard</span>
@@ -1182,7 +1189,7 @@ export function App() {
         <button
           type="button"
           className={`nav-tab ${activeTab === 'DEMO' ? 'active' : ''}`}
-          onClick={() => setActiveTab('DEMO')}
+          onClick={() => switchTab('DEMO')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           <span className="tab-label">Guided Demo</span>
