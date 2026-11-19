@@ -107,6 +107,29 @@ export function App() {
     }, 3500);
   }
 
+  function formatInr(val: number | string | null | undefined): string {
+    if (val === null || val === undefined || val === '') return '₹ 0.00';
+    const num = typeof val === 'number' ? val : parseFloat(String(val));
+    if (isNaN(num)) return '₹ 0.00';
+    return '₹ ' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatDateIn(iso: string | null | undefined): string {
+    if (!iso) return '-';
+    try {
+      return new Date(iso).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return String(iso);
+    }
+  }
+
   // --- Search & Filter for Customer Enquiries ---
   const [enquirySearch, setEnquirySearch] = useState('');
 
@@ -593,7 +616,7 @@ export function App() {
       const updatedEnq = await api.getEnquiry(selectedEnquiry.id);
       setSelectedEnquiry(updatedEnq);
       await loadEnquiries();
-      showToast(`Deterministic costing computed: ₹${res.totalCost} (${res.marginClassification})`);
+      showToast(`Deterministic costing computed: ${formatInr(res.totalCost)} (${res.marginClassification})`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -625,7 +648,7 @@ export function App() {
       const updatedEnq = await api.getEnquiry(selectedEnquiry.id);
       setSelectedEnquiry(updatedEnq);
       await loadEnquiries();
-      showToast(`Customer quotation generated: ₹${q.customerPayable}`);
+      showToast(`Customer quotation generated: ${formatInr(q.customerPayable)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -1074,7 +1097,7 @@ export function App() {
                 <h2>RFQ and Commercial Status</h2>
                 <span className={`badge ${rfq.status === 'AWARDED' ? 'badge-approved' : ''}`}>{rfq.status}</span>
               </div>
-              <p>{rfq.specification} · {rfq.quantity} {rfq.unit} · due {new Date(rfq.requiredProcurementDeliveryAt).toLocaleString()}</p>
+              <p>{rfq.specification} · {rfq.quantity} {rfq.unit} · due {formatDateIn(rfq.requiredProcurementDeliveryAt)}</p>
             </section>
           )}
 
@@ -1405,7 +1428,7 @@ export function App() {
                   <ul className="history-list">
                     {proposalDetail.decisions.map(d => (
                       <li key={d.id} className="history-item">
-                        <strong>{d.decision}</strong> by <code>{d.actorId}</code> at {new Date(d.decidedAt).toLocaleString()}
+                        <strong>{d.decision}</strong> by <code>{d.actorId}</code> at {formatDateIn(d.decidedAt)}
                         <div style={{ marginTop: '4px', color: 'var(--text-muted)' }}>
                           Snapshot Hash: <code>{d.snapshotHash.substring(0, 16)}…</code>
                         </div>
@@ -1822,112 +1845,116 @@ export function App() {
                   <div className="what-if-panel">
                     <div className="row">
                       <div>
-                        <span className="eyebrow" style={{ color: '#818cf8' }}>INTERACTIVE SCENARIO MODELING</span>
-                        <h4 style={{ margin: '2px 0 0', color: '#f8fafc' }}>What-If Sensitivity: Scrap Recovery & Margin Target</h4>
+                        <span className="eyebrow" style={{ color: '#818cf8' }}>ILLUSTRATIVE SCENARIO SIMULATION</span>
+                        <h4 style={{ margin: '2px 0 0', color: '#f8fafc' }}>What-If Simulation: Scrap Recovery & Margin Target</h4>
                       </div>
-                      <span className="badge badge-confirmed">Dynamic Preview</span>
+                      <span className="badge badge-confirmed">Interactive Preview</span>
                     </div>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '6px 0 16px' }}>
-                      Test how scrap recycling credits and margin targets protect factory cashflow before submitting quotes to customers.
-                    </p>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
-                      <div className="slider-group">
-                        <div className="slider-label-row">
-                          <span>Scrap Recovery Rate (%)</span>
-                          <span className="slider-val-badge">{whatIfScrapPct}% Offcut</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="25"
-                          step="1"
-                          value={whatIfScrapPct}
-                          onChange={e => setWhatIfScrapPct(Number(e.target.value))}
-                        />
-                        <small style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                          Credits ~₹{((parseFloat(costing.materialCost) * (whatIfScrapPct / 100) * (25 / 95))).toFixed(2)} / part scrap value back into production.
-                        </small>
-                      </div>
-
-                      <div className="slider-group">
-                        <div className="slider-label-row">
-                          <span>Target Net Margin (%)</span>
-                          <span className="slider-val-badge">{whatIfMarginPct}% Profit</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="5"
-                          max="35"
-                          step="1"
-                          value={whatIfMarginPct}
-                          onChange={e => setWhatIfMarginPct(Number(e.target.value))}
-                        />
-                        <small style={{ color: whatIfMarginPct < 10 ? '#ef4444' : 'var(--text-muted)', fontSize: '11px' }}>
-                          {whatIfMarginPct < 10 ? '⚠ Breaches 10% minimum financial margin floor!' : `Protects ₹${((parseFloat(costing.totalCost) / (1 - (whatIfMarginPct / 100))) - parseFloat(costing.totalCost)).toFixed(2)} cash profit / part.`}
-                        </small>
-                      </div>
-                    </div>
-
-                    {/* Step-by-Step Cost Waterfall */}
                     {(() => {
+                      const scrapPrice = Number(selectedBom?.items?.[0]?.scrapRecoveryPrice || 25);
+                      const matPrice = Number(selectedBom?.items?.[0]?.estimatedUnitCost || 95);
                       const mat = parseFloat(costing.materialCost);
                       const conv = parseFloat(costing.conversionCost);
                       const ovh = parseFloat(costing.overheadCost);
                       const freight = parseFloat(costing.packagingCost) + parseFloat(costing.freightCost);
-                      const scrapCredit = mat * (whatIfScrapPct / 100) * (25 / 95);
+                      const scrapCredit = (mat / matPrice) * (whatIfScrapPct / 100) * scrapPrice;
                       const netCost = Math.max(0, mat - scrapCredit + conv + ovh + freight);
                       const simPrice = netCost / (1 - (whatIfMarginPct / 100));
                       const profit = simPrice - netCost;
 
                       return (
-                        <div style={{ marginTop: '16px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
-                            Cost Waterfall & Target Quotation Synthesis:
-                          </span>
-                          <div className="cost-waterfall-grid">
-                            <div className="waterfall-step-card">
-                              <span className="waterfall-step-title">Raw Material</span>
-                              <div className="waterfall-step-val">+ ₹{mat.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">Sheet Steel</span>
+                        <>
+                          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '6px 0 16px' }}>
+                            Illustrative scenario simulation calibrated against BOM scrap price ({formatInr(scrapPrice)}/kg) and unit material baseline ({formatInr(matPrice)}/kg). Final commercial commitments are calculated deterministically by the backend Java engine.
+                          </p>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+                            <div className="slider-group">
+                              <div className="slider-label-row">
+                                <span>Scrap Recovery Rate (%)</span>
+                                <span className="slider-val-badge">{whatIfScrapPct}% Offcut</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="25"
+                                step="1"
+                                value={whatIfScrapPct}
+                                onChange={e => setWhatIfScrapPct(Number(e.target.value))}
+                              />
+                              <small style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                Credits ~{formatInr(scrapCredit)} / part scrap value back into production.
+                              </small>
                             </div>
-                            <div className="waterfall-step-card">
-                              <span className="waterfall-step-title">Conversion</span>
-                              <div className="waterfall-step-val">+ ₹{conv.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">Laser + Bending</span>
-                            </div>
-                            <div className="waterfall-step-card credit">
-                              <span className="waterfall-step-title" style={{ color: '#34d399' }}>Scrap Credit</span>
-                              <div className="waterfall-step-val" style={{ color: '#34d399' }}>- ₹{scrapCredit.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">{whatIfScrapPct}% Offcut</span>
-                            </div>
-                            <div className="waterfall-step-card">
-                              <span className="waterfall-step-title">Overhead</span>
-                              <div className="waterfall-step-val">+ ₹{ovh.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">20% Multiplier</span>
-                            </div>
-                            <div className="waterfall-step-card">
-                              <span className="waterfall-step-title">Pack & Freight</span>
-                              <div className="waterfall-step-val">+ ₹{freight.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">Direct Outbound</span>
-                            </div>
-                            <div className="waterfall-step-card total">
-                              <span className="waterfall-step-title" style={{ color: '#a5b4fc' }}>Net Cost</span>
-                              <div className="waterfall-step-val" style={{ color: '#a5b4fc' }}>= ₹{netCost.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">Unit Cost Basis</span>
-                            </div>
-                            <div className="waterfall-step-card">
-                              <span className="waterfall-step-title">Margin ({whatIfMarginPct}%)</span>
-                              <div className="waterfall-step-val">+ ₹{profit.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">Factory Profit</span>
-                            </div>
-                            <div className="waterfall-step-card selling">
-                              <span className="waterfall-step-title" style={{ color: '#c084fc' }}>Target Price</span>
-                              <div className="waterfall-step-val" style={{ color: '#ffffff' }}>= ₹{simPrice.toFixed(2)}</div>
-                              <span className="waterfall-step-sub">Excl. Output GST</span>
+
+                            <div className="slider-group">
+                              <div className="slider-label-row">
+                                <span>Target Net Margin (%)</span>
+                                <span className="slider-val-badge">{whatIfMarginPct}% Profit</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="5"
+                                max="35"
+                                step="1"
+                                value={whatIfMarginPct}
+                                onChange={e => setWhatIfMarginPct(Number(e.target.value))}
+                              />
+                              <small style={{ color: whatIfMarginPct < 10 ? '#ef4444' : 'var(--text-muted)', fontSize: '11px' }}>
+                                {whatIfMarginPct < 10 ? '⚠ Breaches 10% minimum financial margin floor!' : `Protects ${formatInr(profit)} cash profit / part.`}
+                              </small>
                             </div>
                           </div>
-                        </div>
+
+                          {/* Step-by-Step Cost Waterfall */}
+                          <div style={{ marginTop: '16px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                              Cost Waterfall & Target Quotation Synthesis:
+                            </span>
+                            <div className="cost-waterfall-grid">
+                              <div className="waterfall-step-card">
+                                <span className="waterfall-step-title">Raw Material</span>
+                                <div className="waterfall-step-val">+ {formatInr(mat)}</div>
+                                <span className="waterfall-step-sub">Sheet Steel</span>
+                              </div>
+                              <div className="waterfall-step-card">
+                                <span className="waterfall-step-title">Conversion</span>
+                                <div className="waterfall-step-val">+ {formatInr(conv)}</div>
+                                <span className="waterfall-step-sub">Laser + Bending</span>
+                              </div>
+                              <div className="waterfall-step-card credit">
+                                <span className="waterfall-step-title" style={{ color: '#34d399' }}>Scrap Credit</span>
+                                <div className="waterfall-step-val" style={{ color: '#34d399' }}>- {formatInr(scrapCredit)}</div>
+                                <span className="waterfall-step-sub">{whatIfScrapPct}% Offcut ({formatInr(scrapPrice)}/kg)</span>
+                              </div>
+                              <div className="waterfall-step-card">
+                                <span className="waterfall-step-title">Overhead</span>
+                                <div className="waterfall-step-val">+ {formatInr(ovh)}</div>
+                                <span className="waterfall-step-sub">20% Multiplier</span>
+                              </div>
+                              <div className="waterfall-step-card">
+                                <span className="waterfall-step-title">Pack & Freight</span>
+                                <div className="waterfall-step-val">+ {formatInr(freight)}</div>
+                                <span className="waterfall-step-sub">Direct Outbound</span>
+                              </div>
+                              <div className="waterfall-step-card total">
+                                <span className="waterfall-step-title" style={{ color: '#a5b4fc' }}>Net Cost</span>
+                                <div className="waterfall-step-val" style={{ color: '#a5b4fc' }}>= {formatInr(netCost)}</div>
+                                <span className="waterfall-step-sub">Unit Cost Basis</span>
+                              </div>
+                              <div className="waterfall-step-card">
+                                <span className="waterfall-step-title">Margin ({whatIfMarginPct}%)</span>
+                                <div className="waterfall-step-val">+ {formatInr(profit)}</div>
+                                <span className="waterfall-step-sub">Factory Profit</span>
+                              </div>
+                              <div className="waterfall-step-card selling">
+                                <span className="waterfall-step-title" style={{ color: '#c084fc' }}>Target Price</span>
+                                <div className="waterfall-step-val" style={{ color: '#ffffff' }}>= {formatInr(simPrice)}</div>
+                                <span className="waterfall-step-sub">Excl. Output GST</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
                       );
                     })()}
                   </div>
@@ -2078,7 +2105,7 @@ export function App() {
                               <div><strong>{item.summary?.customerName || 'Customer Enquiry'}</strong></div>
                               <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <span style={{ color: '#38bdf8', fontWeight: 700 }}>
-                                  ₹ {Number(item.summary?.sellingPrice || item.summary?.customerPayable || 0).toLocaleString('en-IN')}
+                                  {formatInr(item.summary?.sellingPrice || item.summary?.customerPayable || 0)}
                                 </span>
                                 {item.summary?.marginPercent && (
                                   <span className={`badge ${parseFloat(item.summary.marginPercent) >= 20 ? 'badge-healthy' : parseFloat(item.summary.marginPercent) >= 10 ? 'badge-acceptable' : 'badge-loss'}`}>
@@ -2092,11 +2119,11 @@ export function App() {
                               <div><strong>{item.summary?.supplierName || 'Material Supplier'}</strong></div>
                               <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <span style={{ color: '#34d399', fontWeight: 700 }}>
-                                  ₹ {Number(item.summary?.economicLandedCost || item.summary?.cashPayable || 0).toLocaleString('en-IN')} Landed
+                                  {formatInr(item.summary?.economicLandedCost || item.summary?.cashPayable || 0)} Landed
                                 </span>
                                 {item.summary?.savingsVsNextBest && (
                                   <span className="badge badge-approved" style={{ fontSize: '10px' }}>
-                                    Saved ₹{Number(item.summary.savingsVsNextBest).toLocaleString('en-IN')} vs next-best
+                                    Saved {formatInr(item.summary.savingsVsNextBest)} vs next-best
                                   </span>
                                 )}
                               </div>
@@ -2212,7 +2239,7 @@ export function App() {
                         <ul className="history-list" style={{ marginTop: '8px' }}>
                           {inspectProposalDetail.decisions.map(d => (
                             <li key={d.id} className="history-item">
-                              <strong style={{ color: '#f8fafc' }}>{d.decision}</strong> by <code>{d.actorId}</code> at <span style={{ color: 'var(--text-secondary)' }}>{new Date(d.decidedAt).toLocaleString()}</span>
+                              <strong style={{ color: '#f8fafc' }}>{d.decision}</strong> by <code>{d.actorId}</code> at <span style={{ color: 'var(--text-secondary)' }}>{formatDateIn(d.decidedAt)}</span>
                             </li>
                           ))}
                         </ul>

@@ -158,6 +158,15 @@ public class CommercialController {
         return service.getCostingSheet(id);
     }
 
+    @PostMapping({"/boms/{id}/simulate-costing", "/boms/{id}/what-if"})
+    public CostingResult simulateCosting(
+            @PathVariable UUID id,
+            @RequestParam(required = false) BigDecimal scrapPercentage,
+            @RequestParam(required = false) BigDecimal targetMarginPct
+    ) {
+        return service.simulateCosting(id, scrapPercentage, targetMarginPct);
+    }
+
     // ==========================================
     // 4. Customer Quotation Workflow
     // ==========================================

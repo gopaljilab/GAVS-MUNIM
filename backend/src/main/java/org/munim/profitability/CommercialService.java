@@ -405,6 +405,74 @@ public class CommercialService {
         return repo.listCostingSheetsByBomId(bomId);
     }
 
+    public CostingResult simulateCosting(UUID bomId, BigDecimal scrapPercentageOverride, BigDecimal targetMarginPctOverride) {
+        BomView bom = getBom(bomId);
+        if (bom.items() == null || bom.items().isEmpty()) {
+            throw new ProfitabilityValidationException("EMPTY_BOM", "BOM must contain at least one item before costing");
+        }
+
+        List<BomItemCostInput> bomItemInputs = new ArrayList<>();
+        for (BomItemView item : bom.items()) {
+            BigDecimal unitCost = null;
+            String itcStatus = "CREDITABLE";
+            BigDecimal gstRate = new BigDecimal("18.00");
+
+            if (item.sourcingBasis() == SourcingBasis.AWARDED_QUOTE && item.awardedQuoteRevisionId() != null) {
+                Map<String, Object> quoteFields = repo.getSupplierQuoteRevisionFields(item.awardedQuoteRevisionId());
+                if (quoteFields != null) {
+                    if (quoteFields.containsKey("unitPrice")) unitCost = new BigDecimal(quoteFields.get("unitPrice").toString());
+                    if (quoteFields.containsKey("materialTaxRate")) gstRate = new BigDecimal(quoteFields.get("materialTaxRate").toString());
+                    if (quoteFields.containsKey("materialItcStatus")) itcStatus = quoteFields.get("materialItcStatus").toString();
+                }
+            } else {
+                unitCost = item.estimatedUnitCost();
+            }
+            if (unitCost == null) unitCost = new BigDecimal("95.00");
+
+            BigDecimal scrapPct = scrapPercentageOverride != null ? scrapPercentageOverride : item.scrapPercentage();
+
+            bomItemInputs.add(new BomItemCostInput(
+                    item.materialId(),
+                    item.partName(),
+                    item.netQuantity(),
+                    item.unit(),
+                    scrapPct,
+                    item.scrapRecoverySupported(),
+                    item.scrapRecoveryPrice() != null ? item.scrapRecoveryPrice() : new BigDecimal("25.00"),
+                    item.sourcingBasis(),
+                    item.awardedQuoteRevisionId(),
+                    unitCost,
+                    item.estimateRationale(),
+                    itcStatus,
+                    gstRate
+            ));
+        }
+
+        BigDecimal targetMargin = targetMarginPctOverride != null
+                ? targetMarginPctOverride.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+                : new BigDecimal("0.2000");
+
+        CostingRequest engineRequest = new CostingRequest(
+                bom.enquiryId(),
+                bom.id(),
+                bom.batchQuantity(),
+                bomItemInputs,
+                List.of(
+                        new OperationCostInput("Laser Cutting", new BigDecimal("0.50"), new BigDecimal("120.00"), new BigDecimal("0.15"), new BigDecimal("350.00"), new BigDecimal("0.15"), new BigDecimal("150.00")),
+                        new OperationCostInput("CNC Bending", new BigDecimal("0.25"), new BigDecimal("100.00"), new BigDecimal("0.10"), new BigDecimal("250.00"), new BigDecimal("0.10"), new BigDecimal("150.00"))
+                ),
+                new BigDecimal("0.2000"),
+                new BigDecimal("15.00"),
+                new BigDecimal("25.00"),
+                targetMargin,
+                new BigDecimal("0.1000"),
+                null,
+                new BigDecimal("18.00")
+        );
+
+        return engine.calculate(engineRequest);
+    }
+
     // ==========================================
     // 5. Customer Quotation Workflow
     // ==========================================

@@ -21,6 +21,10 @@ services:
       DATABASE_USER: munim
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-munim-local}
       PORT: 8080
+      MUNIM_AI_PROVIDER: ${MUNIM_AI_PROVIDER:-mock}
+      MUNIM_AI_MODEL: ${MUNIM_AI_MODEL:-gpt-4o-mini}
+      MUNIM_AI_API_KEY: ${MUNIM_AI_API_KEY:-}
+      MUNIM_AI_BASE_URL: ${MUNIM_AI_BASE_URL:-https://api.openai.com/v1}
     ports: ["8080:8080"]
     depends_on:
       postgres:

@@ -181,5 +181,7 @@ export const api={
   submitQuotationApproval:(id:string,expectedSnapshotHash?:string)=>
     req<Proposal>('/customer-quotations/'+id+'/submit-approval',{method:'POST',headers:h(crypto.randomUUID()),body:JSON.stringify({expectedSnapshotHash:expectedSnapshotHash||null})}),
   seedDemoData:()=>
-    req<{status:string; message:string}>('/demo/seed',{method:'POST',headers:h()})
+    req<{status:string; message:string}>('/demo/seed',{method:'POST',headers:h()}),
+  simulateCosting:(bomId:string,scrapPct?:number,targetMarginPct?:number)=>
+    req<any>('/boms/'+bomId+'/simulate-costing?'+(scrapPct!==undefined?'scrapPercentage='+scrapPct:'')+(targetMarginPct!==undefined?'&targetMarginPct='+targetMarginPct:''),{method:'POST',headers:h()})
 };
