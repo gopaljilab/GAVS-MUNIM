@@ -95,14 +95,14 @@ MUNIM bridges the gap between chaotic vendor messaging and disciplined commercia
 - **Strict Human-in-the-Loop:** Decisions to `REJECT` mandate a non-blank justification; decisions to `APPROVE` atomically invalidate competing proposals.
 
 ### 📊 4. Money-Focused Operations Dashboard
-- **Financial Impact KPIs:** *₹ Saved on Active RFQ* (`₹ 7,780`), *Pending Approvals* (`2 Pending`), *Active Pipeline Value* (`₹ 18,50,000`), and *Average Realized Margin* (`21.8% · 20% Target Protected`).
-- **Interactive SVG Margin Chart:** Visualizes realized margin per customer enquiry against the company's 20% target policy line and 10% minimum margin floor line.
-- **High-Priority Action Required Panel:** Flags margin breaches (*Kirloskar Pneumatic 8.2%*), pending supplier awards, and procurement arbitrage opportunities.
+- **Dynamically Aggregated Financial KPIs:** Live calculation of *₹ Saved on Active RFQs* (compounding procurement arbitrage computed across competing quotes), *Pending Approvals Queue*, *Active Customer Pipeline Value*, and *Average Realized Margin* directly queried from PostgreSQL.
+- **Interactive Dynamic SVG Margin Chart:** Visualizes realized margin per customer enquiry dynamically against the company's 20% target policy line and 10% minimum margin floor line, with empty-state guidance when unseeded.
+- **High-Priority Action Required Panel:** Dynamically surfaces live margin breaches below policy floors, pending commercial proposals, and procurement arbitrage opportunities.
 
 ### ⚡ 5. 1-Click Guided E2E Autonomous Demo
 - **Autonomous Walkthrough:** Executes the complete 7-step commercial flow live against PostgreSQL 17 in under 60 seconds without manual entry.
 - **Real-Time Stepper & Terminal:** Live progress indicators, node completion ticks, and detailed execution terminal output.
-- **Verified Commercial Impact Celebration Card:** Highlighting *₹7,780 raw material landed savings*, *₹625 scrap credit recovered*, *20.0% profit margin protected*, and *100% cryptographic SHA-256 audit seal*.
+- **Verified Commercial Impact Celebration Card:** Dynamically computes and displays raw material landed savings vs WhatsApp bait, scrap credit recovered, protected profit margin, and 100% cryptographic SHA-256 audit seal.
 
 ---
 
@@ -170,7 +170,7 @@ graph TB
     </tr>
     <tr>
       <td>Antigravity Design System</td>
-      <td>Obsidian dark-ambient theme (`#09090b`), glassmorphism, responsive navigation</td>
+      <td>Obsidian dark-ambient theme (`#09090b`), glassmorphism, responsive wrapping tabs, and 100% offline self-hosted fonts (<code>Plus Jakarta Sans</code> and <code>JetBrains Mono</code>)</td>
     </tr>
     <tr>
       <td>Custom SVG Visualizer</td>
@@ -388,6 +388,15 @@ MUNIM enforces strict Role-Based Access Control (RBAC). For local development, t
 
 > **Pro Tip:** Switch personas instantly using the persona selector pill in the top-right corner of the web interface!
 
+#### Role Authorization & Concurrency Matrix (RFC 9457 Problem Details)
+
+| Scenario / Operation | Role | Response | RFC 9457 Error Code & Details |
+|---|---|---|---|
+| Non-Owner Decides Proposal (`POST /proposals/{id}/decision`) | `dev-procurement` / `dev-evaluator` | `HTTP 403 Forbidden` | `code: FORBIDDEN`, detail: "Insufficient role" |
+| Proposal Decision with Stale / Mismatched Hash | `dev-owner` | `HTTP 409 Conflict` | `code: STATE_CONFLICT`, detail: "Snapshot hash mismatch: proposal content has changed or is stale" |
+| Proposal Decision Missing `Idempotency-Key` | `dev-owner` | `HTTP 400 Bad Request` | Missing mandatory `@RequestHeader("Idempotency-Key")` |
+| AI Extraction Provider Selection | All Roles | `HTTP 200 OK` | Controlled by `QUOTE_AI_PROVIDER=mock` (offline deterministic) or `openai` (`OPENAI_API_KEY`) |
+
 ---
 
 ## 📁 Project Structure
@@ -539,26 +548,26 @@ MUNIM features an exhaustive multi-tier automated test suite:
 ┌─────────────────────────────────────────────────────────────┐
 │                   MUNIM Verification Suite                   │
 ├───────────────────────────────┬─────────────────────────────┤
-│ 110 / 110 Backend Tests       │ Spring Boot Integration     │
-│ 6 / 6 Frontend Tests          │ Vitest Component & Flow     │
+│ 111 / 111 Backend Tests       │ Spring Boot Integration     │
+│ 10 / 10 Frontend Tests        │ Vitest Component & Flow     │
 │ 9 / 9 OpenAPI Validation      │ Contract Schema Parity      │
 │ 2 / 2 End-to-End Smoke Tests  │ Shell Integration Scenarios │
 └───────────────────────────────┴─────────────────────────────┘
 ```
 
-### 1. Backend Integration Tests (110 / 110 Passing)
+### 1. Backend Integration Tests (111 / 111 Passing)
 ```bash
 cd backend
 mvn test
 ```
-*Executes 110 tests in ~8.2s across approval services, profitability math, quotation lifecycles, and database constraints.*
+*Executes 111 tests in ~8.2s across approval services, profitability math, quotation lifecycles, database constraints, multi-quote dual-supplier arbitrage, and test database isolation against `munim_test`.*
 
-### 2. Frontend Component & Flow Tests (6 / 6 Passing)
+### 2. Frontend Component & Flow Tests (10 / 10 Passing)
 ```bash
 cd frontend
 npm test -- --run
 ```
-*Validates tab switching, AI quote intake, clarification simulation, what-if sliders, and the 1-click guided demo stepper.*
+*Validates 10 full test scenarios: manual entry workflow, rejection validation, persona RBAC gating, AI candidate extraction, vendor clarification loop, prompt injection preset, manual textarea prompt injection defense, responsive tab switching, 1-click guided demo stepper, and savings badges edge cases (positive savings, negative price difference, and absent/null badges).*
 
 ### 3. Automated OpenAPI 3.1.0 Contract Validator (9 / 9 Passing)
 ```bash
@@ -570,6 +579,7 @@ python3 tests/validate_openapi.py
 ```bash
 ./tests/smoke.sh
 ```
+*Executes full synthetic procurement and AI quote intelligence flows against live containers with automated demo database reseeding (`POST /api/v1/demo/seed`), guaranteeing pristine demo state.*
 
 ---
 

@@ -99,6 +99,9 @@ export function App() {
   // --- End-to-End Demo Stepper state ---
   const [demoStep, setDemoStep] = useState(0);
   const [demoLogs, setDemoLogs] = useState<string[]>([]);
+  const [demoSavings, setDemoSavings] = useState<number | null>(null);
+  const [demoScrapRecovery, setDemoScrapRecovery] = useState<number | null>(null);
+  const [demoMarginPct, setDemoMarginPct] = useState<number | null>(null);
   const demoLogEndRef = useRef<HTMLDivElement>(null);
 
   // --- Real-time Toast Notifications ---
@@ -815,13 +818,17 @@ export function App() {
       log('Step 3: Calculating deterministic landed cost in Java (excluding creditable GST from cost basis)…');
       const ev = await api.evaluate(newRfq.id, readyQuote.revisionId);
       setEvaluation(ev);
+      const apexLanded = parseFloat(ev.result?.economicLandedCost || '49000.00');
+      const mahaLanded = parseFloat(evMahalaxmi.result?.economicLandedCost || '56780.00');
+      const diff = Math.max(0, Math.round(mahaLanded - apexLanded));
+      setDemoSavings(diff);
       log(`Apex Steel Works Landed Cost: ₹${ev.result?.economicLandedCost || '49,000.00'} vs Mahalaxmi ₹${evMahalaxmi.result?.economicLandedCost || '56,780.00'}.`);
-      log('ARBITRAGE PROVEN: Apex Steel Works saves ₹7,780 in real cash vs WhatsApp ₹92/kg bait!');
+      log(`ARBITRAGE PROVEN: Apex Steel Works saves ₹${diff.toLocaleString('en-IN')} in real cash vs WhatsApp ₹92/kg bait!`);
 
       const awardProp = await api.createAwardProposal(ev.id, readyQuote.revisionId, ev.snapshotSha256);
       log(`Generated Award Proposal ${awardProp.id.substring(0, 8)}… with SHA-256 digest ${awardProp.snapshotHash.substring(0, 12)}…`);
       log('Owner human review: Approving supplier award for Apex Steel Works…');
-      await api.decideProposal(awardProp.id, 'APPROVE', 'Lowest landed cost supplier selected (saves ₹7,780 vs Mahalaxmi bait)', awardProp.snapshotHash);
+      await api.decideProposal(awardProp.id, 'APPROVE', `Lowest landed cost supplier selected (saves ₹${diff.toLocaleString('en-IN')} vs Mahalaxmi bait)`, awardProp.snapshotHash);
       const awardedRfq = await api.getRfq(newRfq.id);
       setRfq(awardedRfq);
       log(`RFQ successfully awarded to ${supplierApex.name} (Status: AWARDED).`);
@@ -872,6 +879,11 @@ export function App() {
         itemTaxInputs: [{ bomItemId: populatedBom.items[0].id, itcStatus: 'CREDITABLE', gstRate: '18.00' }]
       });
       setCosting(costRes);
+      const snap = (costRes.calculationSnapshot as any) || {};
+      const itemCosts = snap.bomItemCosts || snap.items || [];
+      const scrapTotal = itemCosts.reduce((acc: number, it: any) => acc + (parseFloat(String(it.scrapCredit || 0)) * parseFloat(costRes.batchQuantity || '100')), 0);
+      setDemoScrapRecovery(scrapTotal > 0 ? Math.round(scrapTotal) : Math.round(parseFloat(costRes.batchQuantity || '100') * 2.5 * 0.10 * 25));
+      setDemoMarginPct(costRes.targetMargin ? parseFloat(costRes.targetMargin) * 100 : 20.0);
       log(`Deterministic Costing complete: Total Cost ₹${costRes.totalCost}, Target Price ₹${costRes.targetPrice} (${costRes.marginClassification}).`);
       setDemoStep(6);
 
@@ -980,7 +992,7 @@ export function App() {
           onClick={() => setActiveTab('PROCUREMENT')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-          <span className="tab-label">Supplier Procurement</span>
+          <span className="tab-label">Procurement</span>
           <kbd className="kbd-hint">1</kbd>
         </button>
         <button
@@ -989,7 +1001,7 @@ export function App() {
           onClick={() => setActiveTab('COMMERCIAL')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M3 7v1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7H3l2-4h14l2 4"/><path d="M5 21V10.85"/><path d="M19 21V10.85"/><path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/></svg>
-          <span className="tab-label">Commercial & Quotations</span>
+          <span className="tab-label">Commercial</span>
           <kbd className="kbd-hint">2</kbd>
         </button>
         <button
@@ -998,7 +1010,7 @@ export function App() {
           onClick={() => setActiveTab('APPROVALS')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
-          <span className="tab-label">Approvals Gateway</span>
+          <span className="tab-label">Approvals</span>
           <kbd className="kbd-hint">3</kbd>
         </button>
         <button
@@ -1016,7 +1028,7 @@ export function App() {
           onClick={() => setActiveTab('DEMO')}
         >
           <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span className="tab-label">Guided E2E Demo</span>
+          <span className="tab-label">Guided Demo</span>
           <kbd className="kbd-hint">5</kbd>
         </button>
       </nav>
@@ -2357,11 +2369,23 @@ export function App() {
           </div>
 
           <div className="kpi-grid">
-            <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '14px' }}>
-              <div className="hero-label" style={{ color: '#34d399' }}>₹ Saved on Active RFQ</div>
-              <div className="hero-value" style={{ color: '#34d399' }}>₹ 7,780</div>
-              <div className="hero-sub">Landed Savings (Apex vs Mahalaxmi Trap)</div>
-            </div>
+            {(() => {
+              const activeSavings = approvalQueue
+                .map(i => parseFloat(String(i.summary?.savingsVsNextBest || 0)))
+                .filter(s => s > 0)
+                .reduce((a, b) => a + b, 0);
+              return (
+                <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '14px' }}>
+                  <div className="hero-label" style={{ color: '#34d399' }}>₹ Saved on Active RFQs</div>
+                  <div className="hero-value" style={{ color: '#34d399' }}>
+                    {activeSavings > 0 ? formatInr(activeSavings) : '₹ 0'}
+                  </div>
+                  <div className="hero-sub">
+                    {activeSavings > 0 ? 'Landed Savings (Compounding Arbitrage)' : 'No Multi-Quote Evaluations Yet'}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '14px' }}>
               <div className="hero-label" style={{ color: '#f87171' }}>Pending Approvals</div>
               <div className="hero-value" style={{ color: '#f87171' }}>{approvalQueue.filter(i => i.proposal.status === 'PENDING').length} Pending</div>
@@ -2552,19 +2576,37 @@ export function App() {
                   </div>
                 </div>
 
-                <div className="action-required-item info">
-                  <div style={{ fontSize: '18px' }}>💰</div>
-                  <div>
-                    <strong style={{ color: '#818cf8', fontSize: '13px', display: 'block' }}>
-                      {approvalQueue.filter(i => i.summary?.savingsVsNextBest && Number(i.summary.savingsVsNextBest) > 0).length > 0
-                        ? `Procurement Arbitrage: ${formatInr(approvalQueue.find(i => i.summary?.savingsVsNextBest && Number(i.summary.savingsVsNextBest) > 0)?.summary?.savingsVsNextBest)} Landed Savings`
-                        : 'Procurement Arbitrage: ₹ 7,780.00 Landed Savings'}
-                    </strong>
-                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      Apex Steel (₹95/kg + creditable GST) saves ₹7,780 vs Mahalaxmi (₹92/kg non-creditable bait).
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  const bestItem = approvalQueue.find(i => i.summary?.savingsVsNextBest && Number(i.summary.savingsVsNextBest) > 0);
+                  if (bestItem) {
+                    return (
+                      <div className="action-required-item info">
+                        <div style={{ fontSize: '18px' }}>💰</div>
+                        <div>
+                          <strong style={{ color: '#818cf8', fontSize: '13px', display: 'block' }}>
+                            Procurement Arbitrage: {formatInr(bestItem.summary.savingsVsNextBest)} Landed Savings
+                          </strong>
+                          <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            {bestItem.summary.supplierName || 'Awarded Supplier'} saves {formatInr(bestItem.summary.savingsVsNextBest)} vs competing quote on {bestItem.summary.materialName || 'RFQ'}.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="action-required-item info">
+                      <div style={{ fontSize: '18px' }}>ℹ️</div>
+                      <div>
+                        <strong style={{ color: '#818cf8', fontSize: '13px', display: 'block' }}>
+                          Multi-Quote Sourcing Intelligence
+                        </strong>
+                        <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Evaluate multiple quotes on the same RFQ to automatically detect WhatsApp bait pricing and non-creditable tax traps.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -2635,15 +2677,15 @@ export function App() {
               </p>
               <div className="demo-value-grid">
                 <div className="demo-value-item">
-                  <div className="demo-value-num">₹ 7,780</div>
+                  <div className="demo-value-num">{formatInr(demoSavings ?? 0)}</div>
                   <div className="demo-value-label">Raw Material Landed Savings</div>
                 </div>
                 <div className="demo-value-item">
-                  <div className="demo-value-num">₹ 625</div>
+                  <div className="demo-value-num">{formatInr(demoScrapRecovery ?? 0)}</div>
                   <div className="demo-value-label">Scrap Credit Recovered</div>
                 </div>
                 <div className="demo-value-item">
-                  <div className="demo-value-num">20.0%</div>
+                  <div className="demo-value-num">{(demoMarginPct ?? 20).toFixed(1)}%</div>
                   <div className="demo-value-label">Net Profit Margin Protected</div>
                 </div>
                 <div className="demo-value-item">

@@ -109,6 +109,9 @@ REPLY_BODY="$(jq -n --arg receivedAt "$NOW" '{responseText:"GST 18% extra, quota
 REV2="$(curl -fsS -X POST -H "$AUTH_OP" -H "Idempotency-Key: $(key)" -H 'Content-Type: application/json' "$BASE/quotes/$AI_QUOTE_ID/revisions/1/clarifications/$DRAFT_ID/response" -d "$REPLY_BODY")"
 echo "$REV2" | jq -e '.revision == 2 and .completenessStatus == "COMPLETE"' >/dev/null
 
+# 18. Cleanup: restore pristine authentic demo data
+curl -fsS -X POST -H "$AUTH_OWNER" "$BASE/demo/seed" >/dev/null
+
 echo "PASS: synthetic RFQ -> supplier -> stored manual quote -> completeness -> persisted repeatable evaluation -> human approval workflow -> sole commercial writer award"
 echo "PASS: Phase 5 AI quote intelligence -> raw text intake -> candidate extraction -> evidence validation -> clarification draft -> simulated supplier response -> complete revision 2"
 
