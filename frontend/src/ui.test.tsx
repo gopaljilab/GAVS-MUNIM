@@ -87,7 +87,7 @@ describe('procurement vertical slice & human approval UI', () => {
 
     // Wait for Cost breakdown & Pending Approval Card
     await waitFor(() => expect(screen.getByText('Cost Breakdown')).toBeTruthy());
-    expect(screen.getAllByText('₹57550.00')).toHaveLength(2);
+    expect(screen.getAllByText('₹ 57,550.00')).toHaveLength(2);
     expect(screen.getByText('SYNTHETIC DEMO DATA')).toBeTruthy();
 
     // Verify clear distinction: Recommended by system (awaiting owner approval)
@@ -248,7 +248,7 @@ describe('Phase 5 AI Supplier Quote Intelligence UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run Deterministic Landed Cost Evaluation' }));
 
     await waitFor(() => expect(screen.getByText('Cost Breakdown')).toBeTruthy());
-    expect(screen.getAllByText('₹57550.00')).toHaveLength(2);
+    expect(screen.getAllByText('₹ 57,550.00')).toHaveLength(2);
     expect(screen.getByText('AWAITING OWNER APPROVAL')).toBeTruthy();
   });
 

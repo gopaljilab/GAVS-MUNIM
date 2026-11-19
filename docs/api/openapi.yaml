@@ -352,6 +352,19 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
+  /boms/{id}/simulate-costing:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: scrapPercentage, in: query, required: false, schema: {$ref: '#/components/schemas/Decimal'}}
+      - {name: targetMarginPct, in: query, required: false, schema: {$ref: '#/components/schemas/Decimal'}}
+    post:
+      tags: [Commercial]
+      x-required-role: [OWNER, PROCUREMENT_OPERATOR, READ_ONLY_EVALUATOR]
+      responses:
+        '200': {description: Transient deterministic costing simulation, content: {application/json: {schema: {type: object, additionalProperties: true}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
   /costing-sheets/{id}:
     parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
     get:

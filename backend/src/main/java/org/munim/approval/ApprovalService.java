@@ -117,9 +117,37 @@ public class ApprovalService {
         snapshot.put("materialGst", ((BigDecimal) data.get("materialGst")).toPlainString());
         snapshot.put("freightBase", ((BigDecimal) data.get("freightBase")).toPlainString());
         snapshot.put("freightGst", ((BigDecimal) data.get("freightGst")).toPlainString());
+        // Compute next-best savings in Java if other quotes were evaluated
+        List<BigDecimal> otherLandedCosts = db.query(
+                "SELECT economic_landed_cost FROM evaluation_lines WHERE evaluation_id = ? AND quote_revision_id <> ? ORDER BY economic_landed_cost ASC",
+                (rs, n) -> rs.getBigDecimal(1),
+                evaluationId, in.quoteRevisionId()
+        );
+        BigDecimal currentLanded = (BigDecimal) data.get("economicLandedCost");
+        BigDecimal savingsVsNextBest = null;
+        if (!otherLandedCosts.isEmpty()) {
+            BigDecimal nextBest = otherLandedCosts.getFirst();
+            if (nextBest.compareTo(currentLanded) > 0) {
+                savingsVsNextBest = nextBest.subtract(currentLanded);
+            }
+        }
+
+        // Compute risk flag in Java based on tax / delivery attributes
+        @SuppressWarnings("unchecked")
+        Map<String, Object> quoteFields = (Map<String, Object>) data.get("fields");
+        String itcStatus = quoteFields != null && quoteFields.get("materialItcStatus") != null
+                ? quoteFields.get("materialItcStatus").toString()
+                : "CREDITABLE";
+        String riskFlag = null;
+        if ("NON_CREDITABLE".equalsIgnoreCase(itcStatus)) {
+            riskFlag = "Non-Creditable GST (ITC Lost)";
+        }
+
         snapshot.put("economicLandedCost", ((BigDecimal) data.get("economicLandedCost")).toPlainString());
         snapshot.put("cashPayable", ((BigDecimal) data.get("cashPayable")).toPlainString());
         snapshot.put("currency", data.get("currency"));
+        snapshot.put("savingsVsNextBest", savingsVsNextBest != null ? savingsVsNextBest.toPlainString() : null);
+        snapshot.put("riskFlag", riskFlag);
         snapshot.put("policyVersion", 1);
         snapshot.put("quoteFields", data.get("fields"));
 
@@ -246,6 +274,13 @@ public class ApprovalService {
         snapshot.put("profit", profit.toPlainString());
         snapshot.put("marginPercent", realizedMargin != null ? realizedMargin.toPlainString() : null);
         snapshot.put("marginClassification", data.get("marginClassification"));
+        String quoteRiskFlag = null;
+        if (realizedMargin != null && realizedMargin.compareTo(new BigDecimal("10.00")) < 0) {
+            quoteRiskFlag = "Margin " + realizedMargin.toPlainString() + "% below 10% threshold";
+        } else if ("BELOW_MINIMUM_MARGIN".equalsIgnoreCase(String.valueOf(data.get("marginClassification")))) {
+            quoteRiskFlag = "Below 10% minimum margin floor";
+        }
+        snapshot.put("riskFlag", quoteRiskFlag);
         snapshot.put("validFrom", data.get("validFrom").toString());
         snapshot.put("validUntil", validUntil.toString());
         snapshot.put("paymentTerms", data.get("paymentTerms"));

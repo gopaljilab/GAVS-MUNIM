@@ -118,9 +118,8 @@ header {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-ambient);
-  position: sticky;
-  top: 16px;
-  z-index: 100;
+  position: relative;
+  z-index: 10;
   transition: all 0.2s ease;
 }
 

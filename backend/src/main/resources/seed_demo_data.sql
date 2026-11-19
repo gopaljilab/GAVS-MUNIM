@@ -129,7 +129,7 @@ INSERT INTO commercial_proposals (
 ('fa111111-1111-1111-1111-111111111111', 'SUPPLIER_AWARD', 'QUOTE_EVALUATION', 'e1111111-1111-1111-1111-111111111111',
  'e1111111-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111', null,
  'AWARD_SUPPLIER', 'dev-procurement', 'PENDING',
- '{"supplierName": "Apex Steel Works (Bhosari)", "rfqSpecification": "2 mm IS 2062 mild-steel sheet", "rfqQuantity": "500.0000", "rfqUnit": "kg", "economicLandedCost": "57550.00", "cashPayable": "57550.00", "currency": "INR", "savingsVsNextBest": "7780.00", "riskFlag": "None (Creditable GST ITC)", "unitPrice": "95.00", "freightBase": "1500.00"}'::jsonb,
+ '{"supplierName": "Apex Steel Works (Bhosari)", "rfqSpecification": "2 mm IS 2062 mild-steel sheet", "rfqQuantity": "500.0000", "rfqUnit": "kg", "economicLandedCost": "57550.00", "cashPayable": "57550.00", "currency": "INR", "savingsVsNextBest": "7780.00", "riskFlag": null, "unitPrice": "95.00", "freightBase": "1500.00"}'::jsonb,
  '4717fdae7c9964d82ae86b10d97680588096c6373714d16c0c54fd560971729c'),
 
 ('fa222222-2222-2222-2222-222222222222', 'CUSTOMER_QUOTE', 'CUSTOMER_QUOTATION', 'ee222222-2222-2222-2222-222222222222',
