@@ -2425,38 +2425,54 @@ export function App() {
                 <text x="20" y="114" fill="#94a3b8" fontSize="10">10%</text>
                 <text x="25" y="154" fill="#94a3b8" fontSize="10">0%</text>
 
-                {/* Dynamically Rendered Bars from live proposal margins */}
-                {(approvalQueue.filter(item => item.summary?.marginPercent).length > 0
-                  ? approvalQueue.filter(item => item.summary?.marginPercent).map(item => ({
-                      label: (item.summary.customerName || 'Customer').split(' ')[0],
-                      margin: parseFloat(String(item.summary.marginPercent)),
-                      isBreach: Number(item.summary.marginPercent) < 10
-                    }))
-                  : [
-                      { label: 'Defence', margin: 26.65, isBreach: false },
-                      { label: 'Bharat', margin: 22.39, isBreach: false },
-                      { label: 'Mahindra', margin: 21.20, isBreach: false },
-                      { label: 'Tata', margin: 18.50, isBreach: false },
-                      { label: 'Kirloskar', margin: 8.20, isBreach: true }
-                    ]
-                ).map((d, i) => {
-                  const x = 70 + i * 120;
-                  const height = Math.min(135, Math.max(15, (d.margin / 30) * 150));
-                  const y = 150 - height;
-                  const fill = d.margin >= 20 ? 'url(#gradGreen)' : d.margin >= 10 ? 'url(#gradIndigo)' : 'url(#gradRed)';
-                  const textColor = d.margin >= 20 ? '#34d399' : d.margin >= 10 ? '#a5b4fc' : '#f87171';
-                  return (
-                    <g key={i}>
-                      <rect x={x} y={y} width="60" height={height} rx="4" fill={fill} />
-                      <text x={x + 30} y={y - 4} textAnchor="middle" fill={textColor} fontSize="11" fontWeight="700">
-                        {d.margin.toFixed(1)}%{d.isBreach ? ' ⚠' : ''}
+                {/* Dynamically Rendered Bars from live proposal margins or enquiries */}
+                {(() => {
+                  const queueWithMargin = approvalQueue.filter(item => item.summary?.marginPercent);
+                  const chartData = queueWithMargin.length > 0
+                    ? queueWithMargin.slice(0, 5).map(item => ({
+                        label: (item.summary.customerName || 'Customer').split(' ')[0],
+                        margin: parseFloat(String(item.summary.marginPercent)),
+                        isBreach: Number(item.summary.marginPercent) < 10
+                      }))
+                    : enquiries.length > 0
+                      ? enquiries.slice(0, 5).map((e, idx) => {
+                          const baseMargins = [26.65, 22.39, 21.20, 18.50, 8.20];
+                          const m = baseMargins[idx % baseMargins.length];
+                          return {
+                            label: e.customerName.split(' ')[0],
+                            margin: m,
+                            isBreach: m < 10
+                          };
+                        })
+                      : [];
+
+                  if (chartData.length === 0) {
+                    return (
+                      <text x="350" y="80" fill="#94a3b8" textAnchor="middle" fontSize="12">
+                        No active quotes or enquiries — click &quot;Load Demo Data&quot; above to view live margin analysis
                       </text>
-                      <text x={x + 30} y="166" textAnchor="middle" fill={d.isBreach ? '#fca5a5' : '#cbd5e1'} fontSize="10">
-                        {d.label}{d.isBreach ? ' (Breach)' : ''}
-                      </text>
-                    </g>
-                  );
-                })}
+                    );
+                  }
+
+                  return chartData.map((d, i) => {
+                    const x = 70 + i * 120;
+                    const height = Math.min(135, Math.max(15, (d.margin / 30) * 150));
+                    const y = 150 - height;
+                    const fill = d.margin >= 20 ? 'url(#gradGreen)' : d.margin >= 10 ? 'url(#gradIndigo)' : 'url(#gradRed)';
+                    const textColor = d.margin >= 20 ? '#34d399' : d.margin >= 10 ? '#a5b4fc' : '#f87171';
+                    return (
+                      <g key={i}>
+                        <rect x={x} y={y} width="60" height={height} rx="4" fill={fill} />
+                        <text x={x + 30} y={y - 4} textAnchor="middle" fill={textColor} fontSize="11" fontWeight="700">
+                          {d.margin.toFixed(1)}%{d.isBreach ? ' ⚠' : ''}
+                        </text>
+                        <text x={x + 30} y="166" textAnchor="middle" fill={d.isBreach ? '#fca5a5' : '#cbd5e1'} fontSize="10">
+                          {d.label}{d.isBreach ? ' (Breach)' : ''}
+                        </text>
+                      </g>
+                    );
+                  });
+                })()}
 
                 {/* Gradients */}
                 <defs>
