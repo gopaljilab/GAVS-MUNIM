@@ -338,4 +338,230 @@ describe('Reliability, Error Handling, and Audit Quality Regression Suite', () =
     expect(screen.getByRole('button', { name: /Messy Hinglish/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Prompt Injection Attempt/ })).toBeTruthy();
   });
+
+  // Test 11: Financial correctness — Arithmetic Mean vs Aggregate Realized Margin
+  it('correctly calculates both arithmetic mean and aggregate financial margin for differently sized quotations', async () => {
+    // Quote A: Small job (₹10,000 selling price, ₹3,000 profit -> 30% margin)
+    // Quote B: Large factory contract (₹1,000,000 selling price, ₹100,000 profit -> 10% margin)
+    // Arithmetic Mean: (30% + 10%) / 2 = 20.0%
+    // Aggregate Financial Margin: (103,000 / 1,010,000) * 100 = 10.198% ≈ 10.2%
+    const queueItems = [
+      {
+        proposal: { id: 'p1', type: 'CUSTOMER_QUOTE', status: 'PENDING', riskFlag: null },
+        summary: {
+          customerName: 'Small Batch Customer',
+          marginPercent: '30.00',
+          sellingPrice: '10000.00',
+          profit: '3000.00'
+        }
+      },
+      {
+        proposal: { id: 'p2', type: 'CUSTOMER_QUOTE', status: 'APPROVED', riskFlag: null },
+        summary: {
+          customerName: 'Heavy Industrial Client',
+          marginPercent: '10.00',
+          sellingPrice: '1000000.00',
+          profit: '100000.00'
+        }
+      },
+      // Non-customer quote or rejected quote should be excluded from margin calculation
+      {
+        proposal: { id: 'p3', type: 'SUPPLIER_AWARD', status: 'APPROVED' },
+        summary: { marginPercent: '50.00', sellingPrice: '50000.00', profit: '25000.00' }
+      },
+      {
+        proposal: { id: 'p4', type: 'CUSTOMER_QUOTE', status: 'REJECTED' },
+        summary: { marginPercent: '5.00', sellingPrice: '20000.00', profit: '1000.00' }
+      }
+    ];
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      if (urlStr.includes('/approvals')) {
+        return new Response(JSON.stringify({ items: queueItems }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Dashboard/ }));
+    await waitFor(() => expect(screen.getByText('Quotation Margin (Arithmetic Mean)')).toBeTruthy());
+
+    // Arithmetic mean must be 20.0%
+    expect(screen.getByText('20.0%')).toBeTruthy();
+
+    // Aggregate financial companion must be 10.2%
+    expect(screen.getByText('Target ≥ 20% | Aggregate: 10.2%')).toBeTruthy();
+  });
+
+  // Test 12: Database readiness preflight check — Halts when PostgreSQL is DOWN
+  it('halts Guided Demo before creating synthetic resources when database is DOWN', async () => {
+    let seedCalled = false;
+    let rfqCreated = false;
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      const method = init?.method || 'GET';
+
+      if (urlStr.includes('/actuator/health')) {
+        return new Response(
+          JSON.stringify({
+            status: 'UP',
+            components: {
+              db: { status: 'DOWN' },
+              diskSpace: { status: 'UP' }
+            }
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (urlStr.includes('/demo/seed')) {
+        seedCalled = true;
+        return new Response(JSON.stringify({ status: 'SUCCESS' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/rfqs') && method === 'POST') {
+        rfqCreated = true;
+        return new Response(JSON.stringify({ id: 'rfq-unwanted' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Guided Demo/ }));
+    expect(screen.getByText('Guided End-to-End Demonstration')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Run Full Guided Demonstration/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Step 1 Execution Interrupted/)).toBeTruthy();
+      expect(screen.getAllByText(/Database Readiness Failure: PostgreSQL status is reported as "DOWN"/).length).toBeGreaterThan(0);
+    });
+
+    // Halting verified: No synthetic demo data was seeded or created
+    expect(seedCalled).toBe(false);
+    expect(rfqCreated).toBe(false);
+  });
+
+  // Test 13: Preflight check — Halts when Backend itself is DOWN
+  it('halts Guided Demo preflight with clear connectivity guidance when backend is DOWN', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      if (urlStr.includes('/actuator/health')) {
+        return new Response(JSON.stringify({ status: 'DOWN' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Guided Demo/ }));
+    expect(screen.getByText('Guided End-to-End Demonstration')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Run Full Guided Demonstration/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Step 1 Execution Interrupted/)).toBeTruthy();
+      expect(screen.getAllByText(/Backend status reported: DOWN/).length).toBeGreaterThan(0);
+    });
+  });
+
+  // Test 14: Guided Demo session persistence and resumption without duplicate resource creation
+  it('persists demo session in localStorage and resumes without recreating existing resources', async () => {
+    // Simulate browser refresh after Step 4 was completed
+    const savedSession = {
+      step: 5,
+      failedStep: null,
+      resources: {
+        rfqId: 'rfq-existing-123',
+        supplierApexId: 'sup-apex-123',
+        supplierMahalaxmiId: 'sup-maha-123',
+        mahaQuoteRevId: 'rev-maha-123',
+        apexQuoteRevId: 'rev-apex-123',
+        enquiryId: 'enq-existing-456'
+      },
+      logs: ['[12:00:00] Step 4 Complete: Customer Enquiry created.'],
+      savings: 7780,
+      scrap: null,
+      margin: null
+    };
+    localStorage.setItem('munim_demo_session_v1', JSON.stringify(savedSession));
+
+    let createEnquiryCalls = 0;
+    let createBomCalls = 0;
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const urlStr = typeof url === 'string' ? url : (url as Request).url;
+      const method = init?.method || 'GET';
+
+      if (urlStr.includes('/actuator/health')) {
+        return new Response(JSON.stringify({ status: 'UP', components: { db: { status: 'UP' } } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/materials')) {
+        return new Response(JSON.stringify({ items: [{ id: 'mat-1', name: 'IS 2062 MS Sheet' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/customer-enquiries') && !urlStr.includes('/boms') && method === 'POST') {
+        createEnquiryCalls++;
+        return new Response(JSON.stringify({ id: 'enq-duplicate' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/boms') && method === 'POST' && !urlStr.includes('/costings') && !urlStr.includes('/items')) {
+        createBomCalls++;
+        return new Response(JSON.stringify({ id: 'bom-resumed-789', bomVersion: 1, batchQuantity: '100.0000', items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/items') && method === 'POST') {
+        return new Response(JSON.stringify({ id: 'item-1', partName: 'Armoured Chassis Bracket 5mm' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/boms/bom-resumed-789') && method === 'GET') {
+        return new Response(JSON.stringify({ id: 'bom-resumed-789', items: [{ id: 'item-1' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/costings') && method === 'POST') {
+        return new Response(JSON.stringify({
+          id: 'cost-resumed-1',
+          totalCost: '50000.00',
+          targetPrice: '62500.00',
+          targetMargin: '0.2000',
+          marginClassification: 'HEALTHY',
+          snapshotSha256: 'sha-cost-123'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/customer-quotations') && method === 'POST') {
+        return new Response(JSON.stringify({
+          id: 'quote-resumed-1',
+          sellingPrice: '62500.00',
+          customerPayable: '73750.00',
+          approvalStatus: 'PENDING'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/submit-approval')) {
+        return new Response(JSON.stringify({
+          id: 'prop-resumed-1',
+          snapshotHash: 'sha-cost-123',
+          status: 'PENDING'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/decision')) {
+        return new Response(JSON.stringify({ id: 'prop-resumed-1', decision: 'APPROVE', status: 'APPROVED' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (urlStr.includes('/customer-quotations/quote-resumed-1')) {
+        return new Response(JSON.stringify({ id: 'quote-resumed-1', approvalStatus: 'APPROVED' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Guided Demo/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: '▶ Resume Demonstration (from Step 5)' })).toBeTruthy());
+
+    // Click Resume
+    fireEvent.click(screen.getByRole('button', { name: '▶ Resume Demonstration (from Step 5)' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Full 7-stage workflow verified end-to-end with owner cryptographic audit trail/)).toBeTruthy();
+    });
+
+    // Verified: Step 4 was skipped/reused from saved session; no duplicate enquiry was created!
+    expect(createEnquiryCalls).toBe(0);
+    // BOM and subsequent steps were executed
+    expect(createBomCalls).toBe(1);
+  });
 });

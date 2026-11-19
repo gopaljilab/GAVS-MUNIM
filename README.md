@@ -600,24 +600,24 @@ MUNIM features an exhaustive multi-tier automated test suite:
 ┌─────────────────────────────────────────────────────────────┐
 │                   MUNIM Verification Suite                   │
 ├───────────────────────────────┬─────────────────────────────┤
-│ 112 / 112 Backend Tests       │ Spring Boot Integration     │
-│ 20 / 20 Frontend Tests        │ Vitest Component & Reliab.  │
+│ 116 / 116 Backend Tests       │ Spring Boot Integration     │
+│ 24 / 24 Frontend Tests        │ Vitest Component & Reliab.  │
 │ 9 / 9 OpenAPI Validation      │ Contract Schema Parity      │
 │ 2 / 2 End-to-End Smoke Tests  │ Shell Integration Scenarios │
 └───────────────────────────────┴─────────────────────────────┘
 ```
 
-### 1. Backend Integration Tests (112 / 112 Passing)
+### 1. Backend Integration Tests (116 / 116 Passing)
 ```bash
 cd backend
 mvn test
 ```
-*Executes 112 tests across 9 test classes with strict test database isolation against `munim_test` (zero demo database pollution):*
+*Executes 116 tests across 9 test classes with strict test database isolation against `munim_test` (zero demo database pollution):*
 
 | Test Class | Tests Run | Pass Rate | Scope & Focus Area |
 |---|:---:|:---:|---|
 | `FinancialEvaluatorTest` | 13 | 100% | Pure BigDecimal arithmetic, tax allocation, scrap recovery, half-up rounding |
-| `ApprovalIntegrationTest` | 12 | 100% | Sole-writer owner enforcement, 403 role guards, competing proposal invalidation |
+| `ApprovalIntegrationTest` | 16 | 100% | Sole-writer owner enforcement, 403 role guards, competing proposal invalidation, CORS allowed/disallowed origins, RFC 9457 error details |
 | `CommercialWorkflowIntegrationTest` | 11 | 100% | Enquiry lifecycle, BOM versioning, costing runs, and full Guided Demo commercial journey replay |
 | `CustomerQuotationApprovalIntegrationTest` | 10 | 100% | Customer quotation approval happy path, immutable snapshot verification, stale handling |
 | `FlywayCleanDatabaseTest` | 1 | 100% | Clean schema migration V1&rarr;V4, idempotent repeatable migration scripts on empty DB |
@@ -625,16 +625,16 @@ mvn test
 | `ProfitabilityDatabaseIntegrationTest` | 10 | 100% | Persistence layer transactional integrity, audit events, append-only history |
 | `QuoteIntelligenceIntegrationTest` | 18 | 100% | AI extraction regex, evidence verification, prompt injection defense, clarification loops |
 | `ProfitabilityEngineTest` | 24 | 100% | Sheet-metal formula validation, machine rates, labor, overheads, margin safety thresholds |
-| **Total Suite** | **112 / 112** | **100%** | **All 9 test suites passing with 0 failures, 0 errors, 0 skipped** |
+| **Total Suite** | **116 / 116** | **100%** | **All 9 test suites passing with 0 failures, 0 errors, 0 skipped** |
 
-### 2. Frontend Component & Reliability Tests (20 / 20 Passing)
+### 2. Frontend Component & Reliability Tests (24 / 24 Passing)
 ```bash
 cd frontend
 npm test
 ```
-*Validates 20 automated tests across 2 dedicated test suites:*
+*Validates 24 automated tests across 2 dedicated test suites:*
 - **Component & Commercial Flows (`ui.test.tsx` — 10 Tests):** Manual quote intake, rejection mandatory justifications, persona RBAC gating, AI candidate extraction, vendor clarification drafting, prompt injection presets, manual textarea injection containment, responsive tab navigation, 1-click guided demonstration execution, and savings badge variations (positive savings, negative difference, absent badges).
-- **API Reliability & Failure Recovery (`reliability.test.tsx` — 10 Tests):** Network failure and backend-down user messaging with retry button; 403 Forbidden handling and non-owner read-only notice; 422 validation guidance on `AWARDED_QUOTE`; 409 cryptographic state conflict handling; Dashboard metric consistency (0 breaches = 0 alerts and compliant state); dynamic Active Enquiry counter excluding WON and LOST; filter-aware empty states in Approvals queue; Guided Demo preflight failure messaging; Guided Demo step failure with single-step retry without state reset; and synthetic demonstration disclaimer indicators.
+- **API Reliability, Financial Correctness & Failure Recovery (`reliability.test.tsx` — 14 Tests):** Network failure and backend-down user messaging with retry button; 403 Forbidden handling and non-owner read-only notice; 422 validation guidance on `AWARDED_QUOTE`; 409 cryptographic state conflict handling; Dashboard metric consistency (0 breaches = 0 alerts and compliant state); dynamic Active Enquiry counter excluding WON and LOST; filter-aware empty states in Approvals queue; Guided Demo preflight failure messaging; Guided Demo step failure with single-step retry without state reset; synthetic demonstration disclaimer indicators; financial correctness verifying arithmetic mean (20.0%) vs aggregate revenue-weighted margin (10.2%) across differently sized quotes; database readiness preflight halting before resource creation when PostgreSQL is DOWN; backend DOWN preflight failure; and demo session `localStorage` persistence under `munim_demo_session_v1` with step resumption without duplicate resource creation.
 
 ### 3. Automated OpenAPI 3.1.0 Contract Validator (9 / 9 Passing)
 ```bash

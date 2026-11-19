@@ -49,3 +49,4 @@ target/
 # Docker & Database
 postgres-data/
 *.pid
+*.pdf

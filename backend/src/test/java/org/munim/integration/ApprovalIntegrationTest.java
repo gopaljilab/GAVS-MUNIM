@@ -563,6 +563,70 @@ public class ApprovalIntegrationTest {
         assertEquals(0, approvalCount);
     }
 
+    @Test
+    @DisplayName("Scenario 13: Preflight OPTIONS request with allowed origin returns 200 OK and valid CORS headers")
+    void test13_preflightOptionsWithAllowedOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/proposals")
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+                .andExpect(header().exists("Access-Control-Allow-Methods"))
+                .andExpect(header().exists("Access-Control-Allow-Headers"));
+    }
+
+    @Test
+    @DisplayName("Scenario 14: Preflight OPTIONS request with disallowed origin returns 403 Forbidden and denies CORS")
+    void test14_preflightOptionsWithDisallowedOrigin() throws Exception {
+        mockMvc.perform(options("/api/v1/proposals")
+                .header("Origin", "https://unauthorized-attacker.example.com")
+                .header("Access-Control-Request-Method", "POST"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"))
+                .andExpect(jsonPath("$.code").value("CORS_ORIGIN_DENIED"));
+    }
+
+    @Test
+    @DisplayName("Scenario 15: Unauthenticated 401 request with allowed origin retains RFC 9457 Problem Details and CORS headers")
+    void test15_unauthenticatedRequestWithAllowedOriginRetainsProblemDetailsAndCors() throws Exception {
+        mockMvc.perform(get("/api/v1/proposals")
+                .header("Origin", "http://localhost:5173"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.detail").value("Bearer token required"));
+    }
+
+    @Test
+    @DisplayName("Scenario 16: Forbidden 403 non-owner request retains RFC 9457 structure, and disallowed origin receives no CORS headers")
+    void test16_forbiddenNonOwnerRequestAndDisallowedOriginProtection() throws Exception {
+        UUID fakePropId = UUID.randomUUID();
+        DecisionCreate decision = new DecisionCreate("APPROVE", "Unauthorized approval attempt", "fake-hash");
+
+        // Disallowed origin without token -> 401 with no CORS header
+        mockMvc.perform(get("/api/v1/materials")
+                .header("Origin", "https://malicious-external-origin.com"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+        // Allowed origin with non-owner procurement token on owner decision -> 403 Forbidden with CORS header
+        mockMvc.perform(post("/api/v1/proposals/" + fakePropId + "/decision")
+                .header("Origin", "http://localhost:5173")
+                .header("Authorization", "Bearer dev-procurement")
+                .header("Idempotency-Key", idempotencyKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(decision)))
+                .andExpect(status().isForbidden())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.detail").value("Insufficient role"));
+    }
+
     private Map<String, Object> standardQuoteFields(OffsetDateTime now, String unitPrice, String freight) {
         Map<String, Object> f = new LinkedHashMap<>();
         f.put("unitPrice", unitPrice);

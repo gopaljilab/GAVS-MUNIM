@@ -687,6 +687,9 @@ public class ApprovalService {
         if ("CUSTOMER_QUOTE".equals(type)) {
             summary.put("customerName", snapshot.get("customerName"));
             summary.put("marginPercent", snapshot.get("marginPercent"));
+            summary.put("profit", snapshot.get("profit"));
+            summary.put("totalCost", snapshot.get("totalCost"));
+            summary.put("batchQuantity", snapshot.get("batchQuantity"));
             summary.put("quotationId", snapshot.get("quotationId"));
             summary.put("enquiryId", snapshot.get("enquiryId"));
             summary.put("sellingPrice", snapshot.get("sellingPrice"));

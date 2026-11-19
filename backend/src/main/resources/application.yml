@@ -8,17 +8,26 @@ spring:
   flyway:
     enabled: true
 management:
+  endpoint:
+    health:
+      show-components: always
+      probes:
+        enabled: true
   endpoints:
     web:
       exposure:
         include: health,info
       cors:
-        allowed-origin-patterns: "*"
-        allowed-methods: "*"
+        allowed-origins: ${MUNIM_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000}
+        allowed-methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
         allowed-headers: "*"
+        allow-credentials: true
 server:
   port: ${PORT:8080}
 munim:
+  security:
+    cors:
+      allowed-origins: ${MUNIM_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000}
   ai:
     provider: ${MUNIM_AI_PROVIDER:mock}
     model: ${MUNIM_AI_MODEL:gpt-4o-mini}

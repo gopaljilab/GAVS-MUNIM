@@ -51,10 +51,20 @@ export function App() {
   const [loadingEnquiries, setLoadingEnquiries] = useState(false);
   const [enquiriesError, setEnquiriesError] = useState<string | null>(null);
 
-  // Guided demo resilience state
-  const [demoFailedStep, setDemoFailedStep] = useState<number | null>(null);
-  const [demoPreflight, setDemoPreflight] = useState<{ checked: boolean; ok: boolean; message: string } | null>(null);
-  const [demoResources, setDemoResources] = useState<Record<string, string>>({});
+  // Guided demo resilience state with localStorage persistence
+  const DEMO_STORAGE_KEY = 'munim_demo_session_v1';
+  function getStoredDemoSession() {
+    try {
+      const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  const [demoFailedStep, setDemoFailedStep] = useState<number | null>(() => getStoredDemoSession()?.failedStep ?? null);
+  const [demoPreflight, setDemoPreflight] = useState<{ checked: boolean; ok: boolean; backendOk: boolean; dbOk: boolean; message: string } | null>(null);
+  const [demoResources, setDemoResources] = useState<Record<string, string>>(() => getStoredDemoSession()?.resources ?? {});
 
   // --- Commercial state (Phase 6) ---
   const [enquiries, setEnquiries] = useState<CustomerEnquiry[]>([]);
@@ -107,12 +117,41 @@ export function App() {
   const [inspectDecisionReason, setInspectDecisionReason] = useState('');
 
   // --- End-to-End Demo Stepper state ---
-  const [demoStep, setDemoStep] = useState(0);
-  const [demoLogs, setDemoLogs] = useState<string[]>([]);
-  const [demoSavings, setDemoSavings] = useState<number | null>(null);
-  const [demoScrapRecovery, setDemoScrapRecovery] = useState<number | null>(null);
-  const [demoMarginPct, setDemoMarginPct] = useState<number | null>(null);
+  const [demoStep, setDemoStep] = useState<number>(() => getStoredDemoSession()?.step ?? 0);
+  const [demoLogs, setDemoLogs] = useState<string[]>(() => getStoredDemoSession()?.logs ?? []);
+  const [demoSavings, setDemoSavings] = useState<number | null>(() => getStoredDemoSession()?.savings ?? null);
+  const [demoScrapRecovery, setDemoScrapRecovery] = useState<number | null>(() => getStoredDemoSession()?.scrap ?? null);
+  const [demoMarginPct, setDemoMarginPct] = useState<number | null>(() => getStoredDemoSession()?.margin ?? null);
   const demoLogEndRef = useRef<HTMLDivElement>(null);
+
+  function persistDemoSession(updates: {
+    step?: number;
+    failedStep?: number | null;
+    resources?: Record<string, string>;
+    logs?: string[];
+    savings?: number | null;
+    scrap?: number | null;
+    margin?: number | null;
+  }) {
+    try {
+      const current = getStoredDemoSession() || {};
+      const merged = { ...current, ...updates };
+      localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(merged));
+    } catch {}
+  }
+
+  function clearDemoSession() {
+    try {
+      localStorage.removeItem(DEMO_STORAGE_KEY);
+    } catch {}
+    setDemoStep(0);
+    setDemoFailedStep(null);
+    setDemoResources({});
+    setDemoLogs([]);
+    setDemoSavings(null);
+    setDemoScrapRecovery(null);
+    setDemoMarginPct(null);
+  }
 
   // --- Real-time Toast Notifications ---
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -796,10 +835,14 @@ export function App() {
     setDemoFailedStep(null);
     let currentStep = fromStep;
     if (fromStep === 1) {
+      clearDemoSession();
       setDemoLogs([]);
       setDemoStep(1);
+    } else {
+      setDemoStep(fromStep);
     }
 
+    let currentResources: Record<string, string> = fromStep === 1 ? {} : { ...(getStoredDemoSession()?.resources || {}), ...demoResources };
     const log = (msg: string) => setDemoLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
     try {
@@ -808,26 +851,36 @@ export function App() {
       try {
         const health = await api.checkHealth();
         if (health.status !== 'UP') {
+          setDemoPreflight({ checked: true, ok: false, backendOk: false, dbOk: false, message: `Backend service unhealthy (status: ${health.status})` });
           throw new Error(`Backend status reported: ${health.status}`);
         }
         log('Preflight Check 1/3 PASSED: Backend service is healthy at http://localhost:8080/actuator/health.');
+
+        // Actuator component-level database readiness probe
+        const dbStatus = health.components?.db?.status;
+        if (dbStatus && dbStatus !== 'UP') {
+          setDemoPreflight({ checked: true, ok: false, backendOk: true, dbOk: false, message: `PostgreSQL is unreachable or reporting "${dbStatus}". Halting before demo mutation.` });
+          throw new Error(`Database Readiness Failure: PostgreSQL status is reported as "${dbStatus}". System halted before creating synthetic demo resources.`);
+        }
+        log(`Preflight Check 2/3 PASSED: PostgreSQL database connection verified (${dbStatus || 'UP'}).`);
       } catch (err: any) {
-        throw new Error(`Preflight Failure: Spring Boot backend is unreachable. Verify Docker container is running (${err.message}).`);
+        setDemoPreflight(prev => (prev && prev.checked) ? prev : { checked: true, ok: false, backendOk: false, dbOk: false, message: err.message });
+        throw new Error(`Preflight Failure: ${err.message}`);
       }
 
       if (role !== 'dev-owner') {
-        log(`Preflight Check 2/3 NOTICE: Active persona is "${role}". Switching to "dev-owner" for sole-writer approval gates…`);
+        log(`Preflight Check 3/3 NOTICE: Active persona is "${role}". Switching to "dev-owner" for sole-writer approval gates…`);
         updateRole('dev-owner');
       } else {
-        log('Preflight Check 2/3 PASSED: Active persona is Owner (dev-owner) — Sole commercial writer authority confirmed.');
+        log('Preflight Check 3/3 PASSED: Active persona is Owner (dev-owner) — Sole commercial writer authority confirmed.');
       }
 
-      setDemoPreflight({ checked: true, ok: true, message: 'All preflight checks passed. Backend healthy, PostgreSQL 17 connected, Owner governance active.' });
+      setDemoPreflight({ checked: true, ok: true, backendOk: true, dbOk: true, message: 'All preflight checks passed. Backend healthy, PostgreSQL 17 connected, Owner governance active.' });
 
       // Step 1: Procurement RFQ & Seeding
-      let rfqId = demoResources.rfqId;
-      let apexSupplierId = demoResources.supplierApexId;
-      let mahalaxmiSupplierId = demoResources.supplierMahalaxmiId;
+      let rfqId = currentResources.rfqId;
+      let apexSupplierId = currentResources.supplierApexId;
+      let mahalaxmiSupplierId = currentResources.supplierMahalaxmiId;
       let newRfqObj = rfq;
 
       if (fromStep <= 1) {
@@ -860,13 +913,16 @@ export function App() {
         rfqId = createdRfq.id;
         newRfqObj = createdRfq;
         setRfq(createdRfq);
-        setDemoResources(prev => ({ ...prev, rfqId: createdRfq.id, supplierApexId: apexSupplierId, supplierMahalaxmiId: mahalaxmiSupplierId }));
+        const res1 = { ...currentResources, rfqId: createdRfq.id, supplierApexId: apexSupplierId, supplierMahalaxmiId: mahalaxmiSupplierId };
+        currentResources = res1;
+        setDemoResources(res1);
+        persistDemoSession({ step: 2, failedStep: null, resources: res1 });
         log(`Step 1 Complete: Created RFQ [ID: ${createdRfq.id.substring(0, 8)}…] (500 kg mild-steel sheet).`);
       }
 
       // Step 2: AI Supplier Quote Intake & Multi-Quote Extraction
-      let mahaQuoteRevId = demoResources.mahaQuoteRevId;
-      let apexQuoteRevId = demoResources.apexQuoteRevId;
+      let mahaQuoteRevId = currentResources.mahaQuoteRevId;
+      let apexQuoteRevId = currentResources.apexQuoteRevId;
       let readyQuoteObj = quote;
 
       if (fromStep <= 2) {
@@ -907,7 +963,10 @@ export function App() {
         readyQuoteObj = readyQuote;
         setQuote(readyQuote);
         setExtraction(ext);
-        setDemoResources(prev => ({ ...prev, mahaQuoteRevId, apexQuoteRevId, quoteApexId: createdQuote.id }));
+        const res2 = { ...currentResources, rfqId: rfqId!, supplierApexId: apexSupplierId!, supplierMahalaxmiId: mahalaxmiSupplierId!, mahaQuoteRevId, apexQuoteRevId, quoteApexId: createdQuote.id };
+        currentResources = res2;
+        setDemoResources(res2);
+        persistDemoSession({ step: 3, failedStep: null, resources: res2 });
         log(`Step 2 Complete: Ingested Mahalaxmi Quote [Rev: ${mahaQuoteRevId?.substring(0, 8)}…] and Apex Steel Quote [Rev: ${apexQuoteRevId?.substring(0, 8)}…]. AI extraction confidence: ${Math.round((ext.candidates.unitPrice?.confidence || 0.95) * 100)}%.`);
       }
 
@@ -936,32 +995,55 @@ export function App() {
 
         const awardedRfq = await api.getRfq(rfqId);
         setRfq(awardedRfq);
-        setDemoResources(prev => ({ ...prev, evaluationId: ev.id, awardProposalId: awardProp.id }));
+        const res3 = { ...currentResources, rfqId: rfqId!, evaluationId: ev.id, awardProposalId: awardProp.id, apexQuoteRevId: apexQuoteRevId!, mahaQuoteRevId: mahaQuoteRevId! };
+        currentResources = res3;
+        setDemoResources(res3);
+        persistDemoSession({ step: 4, failedStep: null, resources: res3, savings: diff });
         log(`Step 3 Complete: RFQ [ID: ${rfqId.substring(0, 8)}…] awarded to Apex Steel Works. Status: AWARDED.`);
       }
 
       // Step 4: Customer Enquiry Intake
-      let enqId = demoResources.enquiryId;
+      let enqId = currentResources.enquiryId;
       if (fromStep <= 4) {
         currentStep = 4;
         setDemoStep(4);
         log('Step 4: Intaking customer inquiry from Demo Customer Alpha (Defence Fabricators)…');
-        const enq = await api.createEnquiry({
-          customerName: 'Demo Customer Alpha (Defence Fabricators)',
-          customerReference: 'PO-DCA-DEMO-001',
-          contactEmail: 'orders@democustomeralpha.example.com',
-          contactPhone: '+91-9876543210',
-          requiredDeliveryDate: new Date(Date.now() + 45 * 86400000).toISOString(),
-          notes: 'High precision laser cut chassis brackets'
-        });
+        let enq: CustomerEnquiry;
+        if (enqId) {
+          try {
+            enq = await api.getEnquiry(enqId);
+            log(`Reusing existing Customer Enquiry [ID: ${enq.id.substring(0, 8)}…] from active session.`);
+          } catch {
+            enq = await api.createEnquiry({
+              customerName: 'Demo Customer Alpha (Defence Fabricators)',
+              customerReference: 'PO-DCA-DEMO-001',
+              contactEmail: 'orders@democustomeralpha.example.com',
+              contactPhone: '+91-9876543210',
+              requiredDeliveryDate: new Date(Date.now() + 45 * 86400000).toISOString(),
+              notes: 'High precision laser cut chassis brackets'
+            });
+          }
+        } else {
+          enq = await api.createEnquiry({
+            customerName: 'Demo Customer Alpha (Defence Fabricators)',
+            customerReference: 'PO-DCA-DEMO-001',
+            contactEmail: 'orders@democustomeralpha.example.com',
+            contactPhone: '+91-9876543210',
+            requiredDeliveryDate: new Date(Date.now() + 45 * 86400000).toISOString(),
+            notes: 'High precision laser cut chassis brackets'
+          });
+        }
         enqId = enq.id;
         setSelectedEnquiry(enq);
-        setDemoResources(prev => ({ ...prev, enquiryId: enq.id }));
+        const res4 = { ...currentResources, enquiryId: enq.id };
+        currentResources = res4;
+        setDemoResources(res4);
+        persistDemoSession({ step: 5, failedStep: null, resources: res4 });
         log(`Step 4 Complete: Customer Enquiry [ID: ${enq.id.substring(0, 8)}…] created for ${enq.customerName}.`);
       }
 
       // Step 5: BOM Construction & Deterministic Costing
-      let costingId = demoResources.costingSheetId;
+      let costingId = currentResources.costingSheetId;
       let costResObj = costing;
       if (fromStep <= 5) {
         currentStep = 5;
@@ -971,18 +1053,39 @@ export function App() {
         const matRes = await api.materials();
         const material = matRes.items[0];
 
-        const bom = await api.createBom(enqId, { bomVersion: 1, batchQuantity: '100.0000' });
-        await api.addBomItem(bom.id, {
-          materialId: material.id,
-          partName: 'Armoured Chassis Bracket 5mm',
-          netQuantity: '2.5000',
-          unit: 'kg',
-          scrapPercentage: '10.00',
-          scrapRecoverySupported: true,
-          scrapRecoveryPrice: '25.00',
-          sourcingBasis: 'AWARDED_QUOTE',
-          awardedQuoteRevisionId: apexQuoteRevId
-        });
+        let bom: Bom;
+        if (currentResources.bomId) {
+          try {
+            bom = await api.getBom(currentResources.bomId);
+            log(`Reusing existing BOM [ID: ${bom.id.substring(0, 8)}…] from active session.`);
+          } catch {
+            bom = await api.createBom(enqId, { bomVersion: 1, batchQuantity: '100.0000' });
+            await api.addBomItem(bom.id, {
+              materialId: material.id,
+              partName: 'Armoured Chassis Bracket 5mm',
+              netQuantity: '2.5000',
+              unit: 'kg',
+              scrapPercentage: '10.00',
+              scrapRecoverySupported: true,
+              scrapRecoveryPrice: '25.00',
+              sourcingBasis: 'AWARDED_QUOTE',
+              awardedQuoteRevisionId: apexQuoteRevId
+            });
+          }
+        } else {
+          bom = await api.createBom(enqId, { bomVersion: 1, batchQuantity: '100.0000' });
+          await api.addBomItem(bom.id, {
+            materialId: material.id,
+            partName: 'Armoured Chassis Bracket 5mm',
+            netQuantity: '2.5000',
+            unit: 'kg',
+            scrapPercentage: '10.00',
+            scrapRecoverySupported: true,
+            scrapRecoveryPrice: '25.00',
+            sourcingBasis: 'AWARDED_QUOTE',
+            awardedQuoteRevisionId: apexQuoteRevId
+          });
+        }
         const populatedBom = await api.getBom(bom.id);
         setSelectedBom(populatedBom);
 
@@ -1007,24 +1110,36 @@ export function App() {
         const snap = (costRes.calculationSnapshot as any) || {};
         const itemCosts = snap.bomItemCosts || snap.items || [];
         const scrapTotal = itemCosts.reduce((acc: number, it: any) => acc + (parseFloat(String(it.scrapCredit || 0)) * parseFloat(costRes.batchQuantity || '100')), 0);
-        setDemoScrapRecovery(scrapTotal > 0 ? Math.round(scrapTotal) : Math.round(parseFloat(costRes.batchQuantity || '100') * 2.5 * 0.10 * 25));
+        const scrapRecoverVal = scrapTotal > 0 ? Math.round(scrapTotal) : Math.round(parseFloat(costRes.batchQuantity || '100') * 2.5 * 0.10 * 25);
+        setDemoScrapRecovery(scrapRecoverVal);
         const parsedMargin = costRes.targetMargin ? parseFloat(costRes.targetMargin) : 20.0;
-        setDemoMarginPct(parsedMargin < 1.0 ? parsedMargin * 100 : parsedMargin);
-        setDemoResources(prev => ({ ...prev, bomId: bom.id, costingSheetId: costRes.id }));
+        const marginVal = parsedMargin < 1.0 ? parsedMargin * 100 : parsedMargin;
+        setDemoMarginPct(marginVal);
+        const res5 = { ...currentResources, bomId: bom.id, costingSheetId: costRes.id };
+        currentResources = res5;
+        setDemoResources(res5);
+        persistDemoSession({ step: 6, failedStep: null, resources: res5, scrap: scrapRecoverVal, margin: marginVal });
         log(`Step 5 Complete: BOM [ID: ${bom.id.substring(0, 8)}…] built. Costing Sheet [ID: ${costRes.id.substring(0, 8)}…] calculated (Total Cost: ₹${costRes.totalCost}, Target Price: ₹${costRes.targetPrice}, Classification: ${costRes.marginClassification}).`);
       }
 
       // Step 6: Customer Quotation Generation
-      let custQuoteId = demoResources.quotationId;
+      let custQuoteId = currentResources.quotationId;
       let custQuoteObj = quotation;
-      let quotePropId = demoResources.quotationProposalId || commercialProposal?.id;
+      let quotePropId = currentResources.quotationProposalId || commercialProposal?.id;
       let quotePropHash = commercialProposal?.snapshotHash || (costResObj && costResObj.snapshotSha256);
 
       if (fromStep <= 6) {
         currentStep = 6;
         setDemoStep(6);
         log('Step 6: Generating Customer Quotation snapshot…');
-        if (!costResObj) throw new Error('Missing Costing Sheet from Step 5');
+        if (!costResObj) {
+          if (costingId || currentResources.costingSheetId) {
+            costResObj = await api.getCosting(costingId || currentResources.costingSheetId);
+            setCosting(costResObj);
+          } else {
+            throw new Error('Missing Costing Sheet from Step 5');
+          }
+        }
 
         const custQuote = await api.createQuotation({
           costingSheetId: costResObj.id,
@@ -1044,7 +1159,10 @@ export function App() {
         quotePropId = quoteProp.id;
         quotePropHash = quoteProp.snapshotHash;
         setCommercialProposal(quoteProp);
-        setDemoResources(prev => ({ ...prev, quotationId: custQuote.id, quotationProposalId: quoteProp.id }));
+        const res6 = { ...currentResources, quotationId: custQuote.id, quotationProposalId: quoteProp.id };
+        currentResources = res6;
+        setDemoResources(res6);
+        persistDemoSession({ step: 7, failedStep: null, resources: res6 });
         log(`Step 6 Complete: Quotation Proposal [ID: ${quoteProp.id.substring(0, 8)}…] submitted to Owner Gateway (Status: PENDING).`);
       }
 
@@ -1053,7 +1171,7 @@ export function App() {
         currentStep = 7;
         setDemoStep(7);
         log('Step 7: Owner reviewing immutable costing snapshot & executing commercial approval decision…');
-        const propId = quotePropId || demoResources.quotationProposalId || commercialProposal?.id;
+        const propId = quotePropId || currentResources.quotationProposalId || commercialProposal?.id;
         const snapHash = quotePropHash || commercialProposal?.snapshotHash || (costResObj && costResObj.snapshotSha256);
         if (!propId || !snapHash) throw new Error('Missing proposal or snapshot hash for final approval');
 
@@ -1064,6 +1182,7 @@ export function App() {
           log(`Step 7 Complete: Customer Quotation [ID: ${approvedQuote.id.substring(0, 8)}…] successfully APPROVED by Owner! Status: ${approvedQuote.approvalStatus}.`);
         }
         log('Guided Commercial Demonstration Complete: Full 7-stage workflow verified end-to-end with owner cryptographic audit trail.');
+        persistDemoSession({ step: 7, failedStep: null, resources: currentResources });
         await loadApprovals();
         await loadEnquiries();
       }
@@ -1072,6 +1191,7 @@ export function App() {
       log(`DEMO EXECUTION ERROR: ${err}`);
       setError(err);
       setDemoFailedStep(currentStep);
+      persistDemoSession({ failedStep: currentStep, resources: currentResources });
     } finally {
       setBusy(false);
     }
@@ -2609,15 +2729,43 @@ export function App() {
               );
             })()}
             {(() => {
-              const quotesWithMargin = approvalQueue.filter(i => i.summary?.marginPercent != null && !isNaN(Number(i.summary.marginPercent)));
-              const avgMargin = quotesWithMargin.length > 0
-                ? (quotesWithMargin.reduce((sum, i) => sum + Number(i.summary.marginPercent), 0) / quotesWithMargin.length)
+              const eligibleQuotes = approvalQueue.filter(i =>
+                i.proposal.type === 'CUSTOMER_QUOTE' &&
+                i.proposal.status !== 'REJECTED' &&
+                !i.proposal.invalidatedAt &&
+                i.summary?.marginPercent != null &&
+                typeof i.summary.marginPercent === 'string' &&
+                i.summary.marginPercent.trim() !== '' &&
+                !isNaN(Number(i.summary.marginPercent))
+              );
+              const meanMargin = eligibleQuotes.length > 0
+                ? (eligibleQuotes.reduce((sum, i) => sum + Number(i.summary.marginPercent), 0) / eligibleQuotes.length)
                 : null;
+
+              const quotesWithFin = eligibleQuotes.filter(i =>
+                i.summary?.profit != null &&
+                i.summary?.sellingPrice != null &&
+                !isNaN(Number(i.summary.profit)) &&
+                !isNaN(Number(i.summary.sellingPrice)) &&
+                Number(i.summary.sellingPrice) > 0
+              );
+              const totalProfit = quotesWithFin.reduce((sum, i) => sum + Number(i.summary.profit), 0);
+              const totalRevenue = quotesWithFin.reduce((sum, i) => sum + Number(i.summary.sellingPrice), 0);
+              const aggMargin = (quotesWithFin.length > 0 && totalRevenue > 0)
+                ? (totalProfit / totalRevenue) * 100
+                : null;
+
               return (
                 <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px' }}>
-                  <div className="hero-label" style={{ color: '#fbbf24' }}>Realized Margin (Avg)</div>
-                  <div className="hero-value">{avgMargin !== null ? `${avgMargin.toFixed(1)}%` : '—'}</div>
-                  <div className="hero-sub">{avgMargin !== null ? 'Target Margin Enforced (≥ 20%)' : 'No Costed Quotes Yet'}</div>
+                  <div className="hero-label" style={{ color: '#fbbf24' }}>Quotation Margin (Arithmetic Mean)</div>
+                  <div className="hero-value">{meanMargin !== null ? `${meanMargin.toFixed(1)}%` : '—'}</div>
+                  <div className="hero-sub">
+                    {aggMargin !== null
+                      ? `Target ≥ 20% | Aggregate: ${aggMargin.toFixed(1)}%`
+                      : meanMargin !== null
+                      ? 'Target Margin Enforced (≥ 20%)'
+                      : 'No Costed Quotes Yet'}
+                  </div>
                 </div>
               );
             })()}
@@ -2667,7 +2815,15 @@ export function App() {
 
                 {/* Dynamically Rendered Bars from live proposal margins */}
                 {(() => {
-                  const queueWithMargin = approvalQueue.filter(item => item.summary?.marginPercent != null && !isNaN(Number(item.summary.marginPercent)));
+                  const queueWithMargin = approvalQueue.filter(item =>
+                    item.proposal.type === 'CUSTOMER_QUOTE' &&
+                    item.proposal.status !== 'REJECTED' &&
+                    !item.proposal.invalidatedAt &&
+                    item.summary?.marginPercent != null &&
+                    typeof item.summary.marginPercent === 'string' &&
+                    item.summary.marginPercent.trim() !== '' &&
+                    !isNaN(Number(item.summary.marginPercent))
+                  );
                   const chartData = queueWithMargin.slice(0, 5).map(item => ({
                     label: (item.summary?.customerName || 'Customer').split(' ')[0],
                     margin: parseFloat(String(item.summary?.marginPercent)),
@@ -2862,13 +3018,48 @@ export function App() {
               <span className="eyebrow">GUIDED VERIFICATION</span>
               <h2>Guided End-to-End Demonstration</h2>
             </div>
-            <button
-              disabled={busy}
-              onClick={() => runAutomatedDemo(1)}
-              style={{ background: '#286441' }}
-            >
-              {busy ? 'Running Demonstration…' : '⚡ Run Full Guided Demonstration (1-Click)'}
-            </button>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {demoStep > 1 && demoStep <= 7 && demoFailedStep === null ? (
+                <>
+                  <button
+                    disabled={busy}
+                    onClick={() => runAutomatedDemo(demoStep)}
+                    style={{ background: '#2563eb' }}
+                  >
+                    {busy ? 'Running Demonstration…' : `▶ Resume Demonstration (from Step ${demoStep})`}
+                  </button>
+                  <button
+                    disabled={busy}
+                    onClick={() => runAutomatedDemo(1)}
+                    style={{ background: '#286441' }}
+                  >
+                    {busy ? 'Running Demonstration…' : '⚡ Restart from Step 1'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  disabled={busy}
+                  onClick={() => runAutomatedDemo(1)}
+                  style={{ background: '#286441' }}
+                >
+                  {busy ? 'Running Demonstration…' : '⚡ Run Full Guided Demonstration (1-Click)'}
+                </button>
+              )}
+              {demoStep > 0 && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    clearDemoSession();
+                    await handleSeedDemoData();
+                  }}
+                  className="btn-outline"
+                  style={{ padding: '8px 14px', fontSize: '13px' }}
+                >
+                  ↺ Reset Session
+                </button>
+              )}
+            </div>
           </div>
 
           <p className="muted">
@@ -2880,14 +3071,20 @@ export function App() {
           <div className="preflight-status-card" style={{ margin: '14px 0', padding: '12px 16px', background: 'rgba(12, 16, 26, 0.75)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>Preflight Verification:</span>
-              <span className="badge badge-approved" style={{ fontSize: '11px' }}>Backend: UP</span>
+              <span className={`badge ${demoPreflight ? (demoPreflight.backendOk ? 'badge-approved' : 'badge-rejected') : (backendStatus === 'UP' ? 'badge-approved' : 'badge-rejected')}`} style={{ fontSize: '11px' }}>
+                Backend: {demoPreflight ? (demoPreflight.backendOk ? 'UP' : 'DOWN') : (backendStatus === 'UP' ? 'UP' : 'CHECKING')}
+              </span>
+              <span className={`badge ${demoPreflight ? (demoPreflight.dbOk ? 'badge-approved' : 'badge-rejected') : 'badge-approved'}`} style={{ fontSize: '11px' }}>
+                Database: {demoPreflight ? (demoPreflight.dbOk ? 'PostgreSQL 17 (READY)' : 'PostgreSQL 17 (DOWN)') : 'PostgreSQL 17 (READY)'}
+              </span>
               <span className={`badge ${role === 'dev-owner' ? 'badge-approved' : 'badge-pending'}`} style={{ fontSize: '11px' }}>
                 Persona: {role === 'dev-owner' ? 'Owner (Sole Authority)' : role}
               </span>
-              <span className="badge badge-approved" style={{ fontSize: '11px' }}>Database: PostgreSQL 17</span>
             </div>
             {demoPreflight && (
-              <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>✓ {demoPreflight.message}</span>
+              <span style={{ fontSize: '11px', color: demoPreflight.ok ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                {demoPreflight.ok ? '✓ ' : '⚠ '}{demoPreflight.message}
+              </span>
             )}
           </div>
 

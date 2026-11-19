@@ -216,7 +216,14 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   checkHealth: async () => {
     const rootUrl = base.replace(/\/api(\/v1)?$/, '');
-    return req<{ status: string }>(`${rootUrl}/actuator/health`);
+    return req<{
+      status: string;
+      components?: {
+        db?: { status: string };
+        diskSpace?: { status: string };
+        ping?: { status: string };
+      };
+    }>(`${rootUrl}/actuator/health`);
   },
   materials: () => req<{ items: Array<{ id: string; name: string; grade?: string | null; specification: string; baseUnit: string; active: boolean }> }>('/materials', { headers: h() }),
   addSupplier: (name: string) => req<Supplier>('/suppliers', { method: 'POST', headers: h(crypto.randomUUID()), body: JSON.stringify({ name, location: 'Synthetic demo', isSynthetic: true }) }),

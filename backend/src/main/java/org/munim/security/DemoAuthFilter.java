@@ -12,12 +12,37 @@ import java.util.UUID;
 
 @Component
 public class DemoAuthFilter extends OncePerRequestFilter {
+    private static final Set<String> DEFAULT_ALLOWED_ORIGINS = Set.of(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
+    );
+
+    private boolean isAllowedOrigin(String origin) {
+        if (origin == null || origin.isBlank()) return false;
+        String env = System.getenv("MUNIM_ALLOWED_ORIGINS");
+        if (env != null && !env.isBlank()) {
+            for (String allowed : env.split(",")) {
+                if (origin.trim().equalsIgnoreCase(allowed.trim())) return true;
+            }
+            return false;
+        }
+        return DEFAULT_ALLOWED_ORIGINS.contains(origin.trim());
+    }
+
     @Override protected void doFilterInternal(HttpServletRequest req,HttpServletResponse res,FilterChain chain) throws ServletException,IOException {
-        setCorsHeaders(req, res);
         if (req.getMethod().equals("OPTIONS")) {
+            String origin = req.getHeader("Origin");
+            if (origin != null && !isAllowedOrigin(origin)) {
+                writeProblem(req, res, 403, "CORS_ORIGIN_DENIED", "Origin not permitted");
+                return;
+            }
+            setCorsHeaders(req, res);
             res.setStatus(HttpServletResponse.SC_OK);
             return;
         }
+        setCorsHeaders(req, res);
         String path=req.getRequestURI();
         if (!path.startsWith("/api/v1/")) { chain.doFilter(req,res); return; }
         String auth=req.getHeader("Authorization");
@@ -40,7 +65,7 @@ public class DemoAuthFilter extends OncePerRequestFilter {
     }
     private void setCorsHeaders(HttpServletRequest req, HttpServletResponse res) {
         String origin = req.getHeader("Origin");
-        if (origin != null && !origin.isBlank()) {
+        if (isAllowedOrigin(origin)) {
             res.setHeader("Access-Control-Allow-Origin", origin);
             res.setHeader("Access-Control-Allow-Credentials", "true");
             res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
