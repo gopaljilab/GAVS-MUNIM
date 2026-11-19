@@ -29,7 +29,7 @@ spring:
     activate:
       on-profile: postgres-test
   datasource:
-    url: ${DATABASE_TEST_URL:jdbc:postgresql://localhost:5432/munim_test}
+    url: ${DATABASE_TEST_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:5432/munim_test}
     username: ${DATABASE_USER:munim}
     password: ${DATABASE_PASSWORD:munim-local}
   flyway:

@@ -19,8 +19,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class FlywayCleanDatabaseTest {
 
-    private static final String ADMIN_URL = "jdbc:postgresql://localhost:5432/postgres";
-    private static final String DB_URL = "jdbc:postgresql://localhost:5432/munim_flyway_clean_test";
+    private static final String HOST = System.getenv().getOrDefault("POSTGRES_HOST", "localhost");
+    private static final String ADMIN_URL = "jdbc:postgresql://" + HOST + ":5432/postgres";
+    private static final String DB_URL = "jdbc:postgresql://" + HOST + ":5432/munim_flyway_clean_test";
     private static final String USER = "munim";
     private static final String PASS = "munim-local";
 

@@ -117,19 +117,20 @@ public class ApprovalService {
         snapshot.put("materialGst", ((BigDecimal) data.get("materialGst")).toPlainString());
         snapshot.put("freightBase", ((BigDecimal) data.get("freightBase")).toPlainString());
         snapshot.put("freightGst", ((BigDecimal) data.get("freightGst")).toPlainString());
-        // Compute next-best savings in Java if other quotes were evaluated
+        // Compute next-best savings in Java if other quotes on this RFQ were evaluated
         List<BigDecimal> otherLandedCosts = db.query(
-                "SELECT economic_landed_cost FROM evaluation_lines WHERE evaluation_id = ? AND quote_revision_id <> ? ORDER BY economic_landed_cost ASC",
+                "SELECT el.economic_landed_cost FROM evaluation_lines el " +
+                        "JOIN quote_evaluations qe ON qe.id = el.evaluation_id " +
+                        "WHERE qe.rfq_id = ? AND el.quote_revision_id <> ? " +
+                        "ORDER BY el.economic_landed_cost ASC",
                 (rs, n) -> rs.getBigDecimal(1),
-                evaluationId, in.quoteRevisionId()
+                rfqId, in.quoteRevisionId()
         );
         BigDecimal currentLanded = (BigDecimal) data.get("economicLandedCost");
         BigDecimal savingsVsNextBest = null;
         if (!otherLandedCosts.isEmpty()) {
             BigDecimal nextBest = otherLandedCosts.getFirst();
-            if (nextBest.compareTo(currentLanded) > 0) {
-                savingsVsNextBest = nextBest.subtract(currentLanded);
-            }
+            savingsVsNextBest = nextBest.subtract(currentLanded);
         }
 
         // Compute risk flag in Java based on tax / delivery attributes
@@ -681,8 +682,11 @@ public class ApprovalService {
         Map<String, Object> snapshot = read(rs.getString("snapshot_payload"));
 
         Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("riskFlag", snapshot.get("riskFlag"));
+        summary.put("savingsVsNextBest", snapshot.get("savingsVsNextBest"));
         if ("CUSTOMER_QUOTE".equals(type)) {
             summary.put("customerName", snapshot.get("customerName"));
+            summary.put("marginPercent", snapshot.get("marginPercent"));
             summary.put("quotationId", snapshot.get("quotationId"));
             summary.put("enquiryId", snapshot.get("enquiryId"));
             summary.put("sellingPrice", snapshot.get("sellingPrice"));

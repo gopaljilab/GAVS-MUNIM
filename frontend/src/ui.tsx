@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   api,
   type Evaluation,
@@ -153,7 +153,7 @@ export function App() {
 
   // Auto-scroll demo logs to bottom
   useEffect(() => {
-    if (demoLogEndRef.current) {
+    if (demoLogEndRef.current?.scrollIntoView) {
       demoLogEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [demoLogs]);
@@ -933,7 +933,7 @@ export function App() {
       <header>
         <div className="brand-wrapper">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-            <span className="eyebrow" style={{ color: '#818cf8' }}>MUNIM · FACTORY SOURCING</span>
+            <span className="eyebrow" style={{ color: '#818cf8' }}>GAVS · PS 4.1 · FACTORY SOURCING</span>
             <span style={{ color: 'rgba(255, 255, 255, 0.2)' }}>•</span>
             <span style={{ fontSize: '10px', color: backendStatus === 'UP' ? '#10b981' : '#f59e0b', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {backendStatus === 'UP' ? 'SYSTEM LIVE · DETERMINISTIC ENGINE UP' : 'CONNECTING...'}
@@ -1030,7 +1030,7 @@ export function App() {
           <section className="card">
             <div className="row">
               <div>
-                <span className="phase-pill">PHASE 5 · AI SUPPLIER QUOTE INTELLIGENCE</span>
+                <span className="phase-pill">AI SUPPLIER QUOTE INTELLIGENCE</span>
                 <h2 style={{ marginTop: '8px' }}>Supplier Quote Intake</h2>
               </div>
               <div className="segmented-control">
@@ -1182,11 +1182,11 @@ export function App() {
                 extraction.ambiguities.some(a => a.toLowerCase().includes('injection') || a.toLowerCase().includes('untrusted'))) && (
                 <div className="banner banner-rejected" style={{ borderLeft: '4px solid #ef4444', background: 'rgba(239, 68, 68, 0.12)', padding: '12px 16px', borderRadius: '8px', margin: '14px 0' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '20px' }}>🛡️</span>
+                    <span style={{ fontSize: '20px' }}>⚠️</span>
                     <div>
-                      <strong style={{ color: '#f87171', fontSize: '13px' }}>Adversarial Prompt Injection Blocked & Contained</strong>
+                      <strong style={{ color: '#f87171', fontSize: '13px' }}>Instruction-Like Text Detected (Treated as Untrusted Data Only)</strong>
                       <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#fca5a5' }}>
-                        Supplier payload contained prompt override or SQL injection instructions. Deterministic governance isolated the text, disarmed malicious payload, and enforces mandatory owner human review.
+                        Input message contains imperative override instructions. The deterministic Java engine treats all inputs strictly as inert text data—financial calculations and commercial awards are governed by frozen business logic and require explicit human owner approval.
                       </p>
                     </div>
                   </div>
@@ -2199,9 +2199,14 @@ export function App() {
                                 <span style={{ color: '#34d399', fontWeight: 700 }}>
                                   {formatInr(item.summary?.economicLandedCost || item.summary?.cashPayable || 0)} Landed
                                 </span>
-                                {item.summary?.savingsVsNextBest && (
+                                {item.summary?.savingsVsNextBest != null && Number(item.summary.savingsVsNextBest) > 0 && (
                                   <span className="badge badge-approved" style={{ fontSize: '10px' }}>
                                     Saved {formatInr(item.summary.savingsVsNextBest)} vs next-best
+                                  </span>
+                                )}
+                                {item.summary?.savingsVsNextBest != null && Number(item.summary.savingsVsNextBest) < 0 && (
+                                  <span className="badge badge-rejected" style={{ fontSize: '10px' }}>
+                                    +{formatInr(Math.abs(Number(item.summary.savingsVsNextBest)))} more than best
                                   </span>
                                 )}
                               </div>
@@ -2420,30 +2425,38 @@ export function App() {
                 <text x="20" y="114" fill="#94a3b8" fontSize="10">10%</text>
                 <text x="25" y="154" fill="#94a3b8" fontSize="10">0%</text>
 
-                {/* Bar 1: Defence Chassis (26.65% -> height: 133px, y: 17) */}
-                <rect x="80" y="17" width="60" height="133" rx="4" fill="url(#gradGreen)" />
-                <text x="110" y="13" textAnchor="middle" fill="#34d399" fontSize="11" fontWeight="700">26.7%</text>
-                <text x="110" y="166" textAnchor="middle" fill="#cbd5e1" fontSize="10">Defence Chassis</text>
-
-                {/* Bar 2: Bharat Forge (22.39% -> height: 112px, y: 38) */}
-                <rect x="200" y="38" width="60" height="112" rx="4" fill="url(#gradGreen)" />
-                <text x="230" y="34" textAnchor="middle" fill="#34d399" fontSize="11" fontWeight="700">22.4%</text>
-                <text x="230" y="166" textAnchor="middle" fill="#cbd5e1" fontSize="10">Bharat Forge</text>
-
-                {/* Bar 3: Mahindra Auto (21.20% -> height: 106px, y: 44) */}
-                <rect x="320" y="44" width="60" height="106" rx="4" fill="url(#gradGreen)" />
-                <text x="350" y="40" textAnchor="middle" fill="#34d399" fontSize="11" fontWeight="700">21.2%</text>
-                <text x="350" y="166" textAnchor="middle" fill="#cbd5e1" fontSize="10">Mahindra Auto</text>
-
-                {/* Bar 4: Tata Motors CV (18.50% -> height: 92px, y: 58) */}
-                <rect x="440" y="58" width="60" height="92" rx="4" fill="url(#gradIndigo)" />
-                <text x="470" y="54" textAnchor="middle" fill="#a5b4fc" fontSize="11" fontWeight="700">18.5%</text>
-                <text x="470" y="166" textAnchor="middle" fill="#cbd5e1" fontSize="10">Tata Motors</text>
-
-                {/* Bar 5: Kirloskar Pneumatic (8.20% -> height: 41px, y: 109) - BREACH */}
-                <rect x="560" y="109" width="60" height="41" rx="4" fill="url(#gradRed)" />
-                <text x="590" y="104" textAnchor="middle" fill="#f87171" fontSize="11" fontWeight="700">8.2% ⚠</text>
-                <text x="590" y="166" textAnchor="middle" fill="#fca5a5" fontSize="10">Kirloskar (Breach)</text>
+                {/* Dynamically Rendered Bars from live proposal margins */}
+                {(approvalQueue.filter(item => item.summary?.marginPercent).length > 0
+                  ? approvalQueue.filter(item => item.summary?.marginPercent).map(item => ({
+                      label: (item.summary.customerName || 'Customer').split(' ')[0],
+                      margin: parseFloat(String(item.summary.marginPercent)),
+                      isBreach: Number(item.summary.marginPercent) < 10
+                    }))
+                  : [
+                      { label: 'Defence', margin: 26.65, isBreach: false },
+                      { label: 'Bharat', margin: 22.39, isBreach: false },
+                      { label: 'Mahindra', margin: 21.20, isBreach: false },
+                      { label: 'Tata', margin: 18.50, isBreach: false },
+                      { label: 'Kirloskar', margin: 8.20, isBreach: true }
+                    ]
+                ).map((d, i) => {
+                  const x = 70 + i * 120;
+                  const height = Math.min(135, Math.max(15, (d.margin / 30) * 150));
+                  const y = 150 - height;
+                  const fill = d.margin >= 20 ? 'url(#gradGreen)' : d.margin >= 10 ? 'url(#gradIndigo)' : 'url(#gradRed)';
+                  const textColor = d.margin >= 20 ? '#34d399' : d.margin >= 10 ? '#a5b4fc' : '#f87171';
+                  return (
+                    <g key={i}>
+                      <rect x={x} y={y} width="60" height={height} rx="4" fill={fill} />
+                      <text x={x + 30} y={y - 4} textAnchor="middle" fill={textColor} fontSize="11" fontWeight="700">
+                        {d.margin.toFixed(1)}%{d.isBreach ? ' ⚠' : ''}
+                      </text>
+                      <text x={x + 30} y="166" textAnchor="middle" fill={d.isBreach ? '#fca5a5' : '#cbd5e1'} fontSize="10">
+                        {d.label}{d.isBreach ? ' (Breach)' : ''}
+                      </text>
+                    </g>
+                  );
+                })}
 
                 {/* Gradients */}
                 <defs>
@@ -2492,17 +2505,21 @@ export function App() {
             <div>
               <div className="row" style={{ marginBottom: '8px' }}>
                 <h4>Action Required (Owner Focus)</h4>
-                <span className="badge badge-rejected">3 High Priority</span>
+                <span className="badge badge-rejected">
+                  {(approvalQueue.filter(i => i.proposal.riskFlag || (i.summary?.marginPercent && Number(i.summary.marginPercent) < 10)).length || 1)} Alert
+                </span>
               </div>
               <div className="action-required-container">
                 <div className="action-required-item urgent">
                   <div style={{ fontSize: '18px' }}>🚨</div>
                   <div>
                     <strong style={{ color: '#f87171', fontSize: '13px', display: 'block' }}>
-                      Margin Floor Breach: Kirloskar Pneumatic (8.2%)
+                      {approvalQueue.filter(i => i.proposal.riskFlag || (i.summary?.marginPercent && Number(i.summary.marginPercent) < 10)).length > 0
+                        ? `Margin Floor Breach: ${approvalQueue.find(i => i.proposal.riskFlag || (i.summary?.marginPercent && Number(i.summary.marginPercent) < 10))?.summary?.customerName || 'Customer Quote'} (${approvalQueue.find(i => i.summary?.marginPercent)?.summary?.marginPercent || '< 10'}%)`
+                        : 'Margin Floor Guardrails: Zero Active Breaches'}
                     </strong>
                     <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      Proposal auto-flagged below mandatory 10% financial floor. Rejected by Owner to prevent cashflow drain.
+                      Proposal auto-flagged below mandatory 10% financial floor. Human Owner review required to prevent cashflow drain.
                     </p>
                   </div>
                 </div>
@@ -2511,10 +2528,10 @@ export function App() {
                   <div style={{ fontSize: '18px' }}>⏳</div>
                   <div>
                     <strong style={{ color: '#fbbf24', fontSize: '13px', display: 'block' }}>
-                      2 Proposals Pending Owner Authorization
+                      {approvalQueue.filter(i => i.proposal.status === 'PENDING').length} Proposals Pending Owner Authorization
                     </strong>
                     <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      Apex Steel Works (₹57,550 landed cost) & Bharat Forge (₹410/part) awaiting authorization.
+                      Commercial proposals awaiting authorization before binding quotes can be sent.
                     </p>
                   </div>
                 </div>
@@ -2523,7 +2540,9 @@ export function App() {
                   <div style={{ fontSize: '18px' }}>💰</div>
                   <div>
                     <strong style={{ color: '#818cf8', fontSize: '13px', display: 'block' }}>
-                      Procurement Arbitrage: ₹7,780 Landed Savings
+                      {approvalQueue.filter(i => i.summary?.savingsVsNextBest && Number(i.summary.savingsVsNextBest) > 0).length > 0
+                        ? `Procurement Arbitrage: ${formatInr(approvalQueue.find(i => i.summary?.savingsVsNextBest && Number(i.summary.savingsVsNextBest) > 0)?.summary?.savingsVsNextBest)} Landed Savings`
+                        : 'Procurement Arbitrage: ₹ 7,780.00 Landed Savings'}
                     </strong>
                     <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
                       Apex Steel (₹95/kg + creditable GST) saves ₹7,780 vs Mahalaxmi (₹92/kg non-creditable bait).
@@ -2632,7 +2651,7 @@ export function App() {
       )}
 
       <footer>
-        MUNIM: Buy Smarter &middot; Calculate Accurately &middot; Quote Profitably.
+        MUNIM (GAVS · PS 4.1): Buy Smarter &middot; Calculate Accurately &middot; Quote Profitably.
         AI models extract and validate raw inputs; deterministic Java engines calculate production costs; only authorized owners commit funds.
       </footer>
 

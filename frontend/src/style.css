@@ -109,9 +109,9 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 24px;
-  margin-bottom: 24px;
-  padding: 20px 28px;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 14px 22px;
   background: rgba(14, 16, 24, 0.82);
   backdrop-filter: blur(20px) saturate(190%);
   -webkit-backdrop-filter: blur(20px) saturate(190%);
@@ -268,19 +268,23 @@ h4 {
 .nav-tabs {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: rgba(14, 16, 24, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  padding: 6px;
+  padding: 5px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
-  margin-bottom: 28px;
+  margin-bottom: 18px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.nav-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-tab {
@@ -288,17 +292,17 @@ h4 {
   color: #94a3b8;
   border: none;
   border-radius: var(--radius-full);
-  padding: 9px 18px;
+  padding: 7px 13px;
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12.5px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   user-select: none;
 }
@@ -1717,23 +1721,30 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 @media (max-width: 640px) {
   main {
-    padding: 16px 12px;
+    padding: 12px 10px;
   }
 
   header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
-    padding: 18px;
+    gap: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+
+  .brand-wrapper h1 {
+    font-size: 18px;
+    margin: 2px 0;
+  }
+
+  .brand-wrapper p {
+    display: none;
   }
 
   .header-actions {
     width: 100%;
     justify-content: space-between;
-  }
-
-  h1 {
-    font-size: 22px;
+    gap: 8px;
   }
 
   dl {
@@ -1743,15 +1754,17 @@ input[type="range"]::-webkit-slider-thumb:hover {
   .nav-tabs {
     flex-wrap: wrap;
     border-radius: var(--radius-md);
-    padding: 6px;
-    gap: 6px;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 12px;
   }
 
   .nav-tab {
-    flex: 1 1 calc(50% - 6px);
+    flex: 1 1 calc(50% - 4px);
     justify-content: center;
-    padding: 8px 10px;
-    font-size: 12px;
+    padding: 6px 8px;
+    font-size: 11px;
+    gap: 4px;
   }
 
   .nav-tab:last-child:nth-child(odd) {

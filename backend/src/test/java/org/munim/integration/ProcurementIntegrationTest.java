@@ -543,6 +543,116 @@ public class ProcurementIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @DisplayName("Dual competing quotes on single RFQ: Java computes savingsVsNextBest and flags non-creditable GST risk")
+    void dualSupplierCompetingQuotes_JavaComputesSavingsAndRisk() throws Exception {
+        UUID materialId = getSeededMaterialId();
+        UUID rfqId = createTestRfq(materialId, new BigDecimal("500.0000"));
+
+        // Supplier 1: Mahalaxmi Metals (WhatsApp bait: ₹92.00/kg, but non-creditable GST + ₹2500 freight)
+        UUID supMahalaxmi = createTestSupplier("Mahalaxmi Metals Integration Test");
+        Map<String, Object> fieldsMahalaxmi = standardQuoteFields();
+        fieldsMahalaxmi.put("unitPrice", "92.00");
+        fieldsMahalaxmi.put("quotedQuantity", "500.0000");
+        fieldsMahalaxmi.put("materialTaxRate", "18.00");
+        fieldsMahalaxmi.put("materialItcStatus", "NON_CREDITABLE");
+        fieldsMahalaxmi.put("freightBasis", "SEPARATE");
+        fieldsMahalaxmi.put("freightAmount", "2500.00");
+        fieldsMahalaxmi.put("freightItcStatus", "NON_CREDITABLE");
+        QuoteView quoteMahalaxmi = createTestQuote(rfqId, supMahalaxmi, fieldsMahalaxmi);
+
+        // Supplier 2: Apex Steel Works (₹95.00/kg, creditable GST + ₹1500 freight)
+        UUID supApex = createTestSupplier("Apex Steel Works Integration Test");
+        Map<String, Object> fieldsApex = standardQuoteFields();
+        fieldsApex.put("unitPrice", "95.00");
+        fieldsApex.put("quotedQuantity", "500.0000");
+        fieldsApex.put("materialTaxRate", "18.00");
+        fieldsApex.put("materialItcStatus", "CREDITABLE");
+        fieldsApex.put("freightBasis", "SEPARATE");
+        fieldsApex.put("freightAmount", "1500.00");
+        fieldsApex.put("freightItcStatus", "CREDITABLE");
+        QuoteView quoteApex = createTestQuote(rfqId, supApex, fieldsApex);
+
+        // Evaluate quote 1: Mahalaxmi Metals (non-creditable ITC)
+        EvaluationCreate evalReqMahalaxmi = new EvaluationCreate(
+                List.of(quoteMahalaxmi.revisionId()),
+                1
+        );
+        MvcResult evalResMahalaxmi = mockMvc.perform(post("/api/v1/rfqs/" + rfqId + "/evaluations")
+                .header("Authorization", "Bearer dev-procurement")
+                .header("Idempotency-Key", idempotencyKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(evalReqMahalaxmi)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        EvaluationView evalMahalaxmi = mapper.readValue(evalResMahalaxmi.getResponse().getContentAsString(), EvaluationView.class);
+
+        // Evaluate quote 2: Apex Steel Works (creditable ITC)
+        EvaluationCreate evalReqApex = new EvaluationCreate(
+                List.of(quoteApex.revisionId()),
+                1
+        );
+        MvcResult evalResApex = mockMvc.perform(post("/api/v1/rfqs/" + rfqId + "/evaluations")
+                .header("Authorization", "Bearer dev-procurement")
+                .header("Idempotency-Key", idempotencyKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(evalReqApex)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        EvaluationView evalApex = mapper.readValue(evalResApex.getResponse().getContentAsString(), EvaluationView.class);
+
+        // 1. Create award proposal for Apex Steel (lowest landed cost)
+        AwardProposalCreate apexProposalReq = new AwardProposalCreate(
+                quoteApex.revisionId(),
+                evalApex.snapshotSha256()
+        );
+        MvcResult apexPropRes = mockMvc.perform(post("/api/v1/evaluations/" + evalApex.id() + "/award-proposals")
+                .header("Authorization", "Bearer dev-procurement")
+                .header("Idempotency-Key", idempotencyKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(apexProposalReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        ProposalView apexProposal = mapper.readValue(apexPropRes.getResponse().getContentAsString(), ProposalView.class);
+        assertNotNull(apexProposal.id());
+
+        // Verify detail endpoint confirms Java-calculated savings of ₹7,780 and null riskFlag
+        mockMvc.perform(get("/api/v1/approvals/" + apexProposal.id())
+                .header("Authorization", "Bearer dev-owner"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snapshot.savingsVsNextBest").value("7780.00"))
+                .andExpect(jsonPath("$.snapshot.riskFlag").doesNotExist());
+
+        // 2. Create award proposal for Mahalaxmi Metals (higher landed cost due to lost ITC)
+        AwardProposalCreate mahalaxmiProposalReq = new AwardProposalCreate(
+                quoteMahalaxmi.revisionId(),
+                evalMahalaxmi.snapshotSha256()
+        );
+        MvcResult mahalaxmiPropRes = mockMvc.perform(post("/api/v1/evaluations/" + evalMahalaxmi.id() + "/award-proposals")
+                .header("Authorization", "Bearer dev-procurement")
+                .header("Idempotency-Key", idempotencyKey())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(mahalaxmiProposalReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        ProposalView mahalaxmiProposal = mapper.readValue(mahalaxmiPropRes.getResponse().getContentAsString(), ProposalView.class);
+        assertNotNull(mahalaxmiProposal.id());
+
+        // Verify detail endpoint confirms non-creditable GST risk flag and negative savings (-7780.00)
+        mockMvc.perform(get("/api/v1/approvals/" + mahalaxmiProposal.id())
+                .header("Authorization", "Bearer dev-owner"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.snapshot.savingsVsNextBest").value("-7780.00"))
+                .andExpect(jsonPath("$.snapshot.riskFlag").value("Non-Creditable GST (ITC Lost)"));
+
+        // 3. Verify queue endpoint includes both summary fields
+        mockMvc.perform(get("/api/v1/approvals")
+                .header("Authorization", "Bearer dev-owner"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[?(@.proposal.id == '" + apexProposal.id() + "')].summary.savingsVsNextBest").value("7780.00"))
+                .andExpect(jsonPath("$.items[?(@.proposal.id == '" + mahalaxmiProposal.id() + "')].summary.riskFlag").value("Non-Creditable GST (ITC Lost)"));
+    }
+
     // Helpers
     private UUID createTestRfq(UUID materialId, BigDecimal qty) {
         return db.queryForObject(
