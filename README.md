@@ -1,5 +1,9 @@
 <div align="center">
 
+<img src="docs/screenshots/munim_banner.png" alt="MUNIM — AI Procurement & Sheet-Metal Fabrication Profitability Platform" width="100%" />
+
+<br /><br />
+
 # ⚡ MUNIM 
 
 ### AI Procurement, Commercial Quoting & Deterministic Profitability Engine
