@@ -179,7 +179,10 @@ public class SupplierIntelligenceService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrderView closePurchaseOrder(UUID poId, PurchaseOrderCloseInput in, String actor) {
+    public PurchaseOrderView closePurchaseOrder(UUID poId, PurchaseOrderCloseInput in, String actorRole, String actor) {
+        if (!"OWNER".equals(actorRole)) {
+            throw new SecurityException("Only OWNER may close purchase orders");
+        }
         if (in.reason() == null || in.reason().trim().length() < 10) {
             throw new IllegalArgumentException("Closure reason is mandatory and must be at least 10 characters");
         }
@@ -188,6 +191,9 @@ public class SupplierIntelligenceService {
 
         if ("CANCELLED".equals(po.status())) {
             throw new IllegalStateException("Cannot close a cancelled Purchase Order");
+        }
+        if ("COMPLETED".equals(po.status()) && po.firstCompletedAt() != null) {
+            throw new IllegalStateException("Cannot short-close an already completed Purchase Order");
         }
 
         BigDecimal cumulativeReceived = repository.getCumulativeOriginalReceivedQuantity(poId)
@@ -210,7 +216,10 @@ public class SupplierIntelligenceService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrderView reopenPurchaseOrder(UUID poId, PurchaseOrderReopenInput in, String actor) {
+    public PurchaseOrderView reopenPurchaseOrder(UUID poId, PurchaseOrderReopenInput in, String actorRole, String actor) {
+        if (!"OWNER".equals(actorRole)) {
+            throw new SecurityException("Only OWNER may reopen purchase orders");
+        }
         if (in.reason() == null || in.reason().trim().length() < 10) {
             throw new IllegalArgumentException("Reopen reason is mandatory and must be at least 10 characters");
         }
@@ -245,8 +254,11 @@ public class SupplierIntelligenceService {
         PurchaseOrderView po = repository.findPoById(poId)
                 .orElseThrow(() -> new NoSuchElementException("Purchase Order not found: " + poId));
 
-        if ("CANCELLED".equals(po.status()) || "COMPLETED".equals(po.status())) {
-            throw new IllegalStateException("Cannot record delivery on a " + po.status() + " Purchase Order");
+        if ("CANCELLED".equals(po.status())) {
+            throw new IllegalStateException("Cannot record delivery on a cancelled Purchase Order");
+        }
+        if ("PO_SHORT_CLOSED".equals(po.poDeliveryStatus())) {
+            throw new IllegalStateException("Cannot record delivery on a short-closed Purchase Order. Reopen it first.");
         }
 
         if (in.receivedQuantity() == null || in.receivedQuantity().compareTo(BigDecimal.ZERO) <= 0) {
@@ -288,7 +300,7 @@ public class SupplierIntelligenceService {
             OffsetDateTime firstCompletedAt = in.actualDeliveryDate();
             String poDeliveryStatus = po.promisedDeliveryDate().toLocalDate().isBefore(in.actualDeliveryDate().toLocalDate())
                     ? "PO_DELAYED" : "PO_ON_TIME";
-            repository.updatePoStatus(poId, "PARTIALLY_DELIVERED", firstCompletedAt, poDeliveryStatus);
+            repository.updatePoStatus(poId, "COMPLETED", firstCompletedAt, poDeliveryStatus);
         } else if ("ISSUED".equals(po.status())) {
             repository.updatePoStatus(poId, "PARTIALLY_DELIVERED", po.firstCompletedAt(), po.poDeliveryStatus());
         }

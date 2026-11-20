@@ -747,6 +747,136 @@ public class PurchaseOutcomeIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    // =========================================================================
+    // Test 13: PHYSICAL_QUANTITY_CORRECTION Adjustment Type
+    // =========================================================================
+    @Test
+    @DisplayName("13. PHYSICAL_QUANTITY_CORRECTION adjustment updates effective received and accepted quantities")
+    void testPhysicalQuantityCorrectionAdjustment() throws Exception {
+        AwardFixture f = setupEvaluatedRfqAndAwardProposal(new BigDecimal("1000.0000"), new BigDecimal("50.00"), new BigDecimal("1000.00"));
+        DecisionCreate input = new DecisionCreate("APPROVE", "Awarded", f.snapshotHash());
+        mockMvc.perform(post("/api/v1/proposals/" + f.proposalId() + "/decision").header("Authorization", "Bearer dev-owner").header("Idempotency-Key", "idemp-pqc-001").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(input))).andExpect(status().isOk());
+
+        UUID poId = db.queryForObject("SELECT id FROM purchase_orders WHERE rfq_id = ?", UUID.class, f.rfqId());
+
+        DeliveryIntakeInput dIn = new DeliveryIntakeInput(OffsetDateTime.now(), new BigDecimal("1000.0000"), "DC-PQC", false);
+        MvcResult resD = mockMvc.perform(post("/api/v1/purchase-orders/" + poId + "/receipts/delivery").header("Authorization", "Bearer dev-procurement").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(dIn))).andExpect(status().isCreated()).andReturn();
+        UUID receiptId = mapper.readValue(resD.getResponse().getContentAsString(), PurchaseReceiptView.class).id();
+
+        QualityInspectionInput qIn = new QualityInspectionInput("INSPECTED", new BigDecimal("1000.0000"), new BigDecimal("1000.0000"), BigDecimal.ZERO, null, null);
+        mockMvc.perform(put("/api/v1/purchase-receipts/" + receiptId + "/quality-inspection").header("Authorization", "Bearer dev-procurement").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(qIn))).andExpect(status().isOk());
+
+        InvoiceReconciliationInput invIn = new InvoiceReconciliationInput("INV-PQC", OffsetDateTime.now(), new BigDecimal("50000.00"), new BigDecimal("9000.00"), new BigDecimal("1000.00"), new BigDecimal("180.00"), BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("18.00"), "CREDITABLE", null);
+        mockMvc.perform(put("/api/v1/purchase-receipts/" + receiptId + "/invoice-reconciliation").header("Authorization", "Bearer dev-procurement").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(invIn))).andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/purchase-receipts/" + receiptId + "/verify").header("Authorization", "Bearer dev-owner")).andExpect(status().isOk());
+
+        // Record PHYSICAL_QUANTITY_CORRECTION of -15 kg due to weighbridge calibration tare error
+        ReceiptAdjustmentInput adj = new ReceiptAdjustmentInput(
+                "PHYSICAL_QUANTITY_CORRECTION", "Weighbridge tare recalibration -15kg net error", "CORR-001",
+                new BigDecimal("-15.0000"), BigDecimal.ZERO, new BigDecimal("-15.0000"), BigDecimal.ZERO,
+                new BigDecimal("-750.00"), new BigDecimal("-135.00"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO
+        );
+
+        mockMvc.perform(post("/api/v1/purchase-receipts/" + receiptId + "/adjust")
+                        .header("Authorization", "Bearer dev-owner")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(adj)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.adjustmentType").value("PHYSICAL_QUANTITY_CORRECTION"))
+                .andExpect(jsonPath("$.deltaReceivedQuantity").value(-15.0000))
+                .andExpect(jsonPath("$.deltaAcceptedQuantity").value(-15.0000));
+
+        // Original receipt remains untouched
+        BigDecimal origReceived = db.queryForObject("SELECT received_quantity FROM purchase_receipts WHERE id = ?", BigDecimal.class, receiptId);
+        assertEquals(0, new BigDecimal("1000.0000").compareTo(origReceived));
+
+        // Effective received reflects correction: 1000 - 15 = 985 kg
+        MvcResult resDetail = mockMvc.perform(get("/api/v1/purchase-orders/" + poId).header("Authorization", "Bearer dev-evaluator")).andExpect(status().isOk()).andReturn();
+        PurchaseOrderDetailView detail = mapper.readValue(resDetail.getResponse().getContentAsString(), PurchaseOrderDetailView.class);
+        assertEquals(0, new BigDecimal("985.0000").compareTo(detail.effectiveReceivedQuantity()));
+    }
+
+    // =========================================================================
+    // Test 14: FINANCIAL_DEBIT_NOTE Adjustment Type
+    // =========================================================================
+    @Test
+    @DisplayName("14. FINANCIAL_DEBIT_NOTE adjustment increases landed cost while keeping physical yield unchanged")
+    void testFinancialDebitNoteAdjustment() throws Exception {
+        AwardFixture f = setupEvaluatedRfqAndAwardProposal(new BigDecimal("500.0000"), new BigDecimal("100.00"), new BigDecimal("500.00"));
+        DecisionCreate input = new DecisionCreate("APPROVE", "Awarded", f.snapshotHash());
+        mockMvc.perform(post("/api/v1/proposals/" + f.proposalId() + "/decision").header("Authorization", "Bearer dev-owner").header("Idempotency-Key", "idemp-fdn-001").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(input))).andExpect(status().isOk());
+
+        UUID poId = db.queryForObject("SELECT id FROM purchase_orders WHERE rfq_id = ?", UUID.class, f.rfqId());
+
+        DeliveryIntakeInput dIn = new DeliveryIntakeInput(OffsetDateTime.now(), new BigDecimal("500.0000"), "DC-FDN", false);
+        MvcResult resD = mockMvc.perform(post("/api/v1/purchase-orders/" + poId + "/receipts/delivery").header("Authorization", "Bearer dev-procurement").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(dIn))).andExpect(status().isCreated()).andReturn();
+        UUID receiptId = mapper.readValue(resD.getResponse().getContentAsString(), PurchaseReceiptView.class).id();
+
+        QualityInspectionInput qIn = new QualityInspectionInput("INSPECTED", new BigDecimal("500.0000"), new BigDecimal("500.0000"), BigDecimal.ZERO, null, null);
+        mockMvc.perform(put("/api/v1/purchase-receipts/" + receiptId + "/quality-inspection").header("Authorization", "Bearer dev-procurement").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(qIn))).andExpect(status().isOk());
+
+        InvoiceReconciliationInput invIn = new InvoiceReconciliationInput("INV-FDN", OffsetDateTime.now(), new BigDecimal("50000.00"), new BigDecimal("9000.00"), new BigDecimal("500.00"), new BigDecimal("90.00"), BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("18.00"), "CREDITABLE", null);
+        mockMvc.perform(put("/api/v1/purchase-receipts/" + receiptId + "/invoice-reconciliation").header("Authorization", "Bearer dev-procurement").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(invIn))).andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/purchase-receipts/" + receiptId + "/verify").header("Authorization", "Bearer dev-owner")).andExpect(status().isOk());
+
+        // Supplier issues debit note for supplementary unloading and handling charge (+200 base)
+        ReceiptAdjustmentInput debitNote = new ReceiptAdjustmentInput(
+                "FINANCIAL_DEBIT_NOTE", "Supplementary handling charges debit note from transporter", "DN-2026-001",
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                new BigDecimal("200.00"), new BigDecimal("36.00")
+        );
+
+        mockMvc.perform(post("/api/v1/purchase-receipts/" + receiptId + "/adjust")
+                        .header("Authorization", "Bearer dev-owner")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(debitNote)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.adjustmentType").value("FINANCIAL_DEBIT_NOTE"))
+                .andExpect(jsonPath("$.deltaReceivedQuantity").value(0.0000))
+                .andExpect(jsonPath("$.deltaAcceptedQuantity").value(0.0000))
+                .andExpect(jsonPath("$.deltaEconomicLandedCost").value(200.00));
+
+        // Physical quantities in detail view remain strictly intact
+        MvcResult resDetail = mockMvc.perform(get("/api/v1/purchase-orders/" + poId).header("Authorization", "Bearer dev-evaluator")).andExpect(status().isOk()).andReturn();
+        PurchaseOrderDetailView detail = mapper.readValue(resDetail.getResponse().getContentAsString(), PurchaseOrderDetailView.class);
+        assertEquals(0, new BigDecimal("500.0000").compareTo(detail.cumulativeReceivedQuantity()));
+        assertEquals(0, new BigDecimal("500.0000").compareTo(detail.effectiveReceivedQuantity()));
+    }
+
+    // =========================================================================
+    // Test 15: Cannot close already completed PO
+    // =========================================================================
+    @Test
+    @DisplayName("15. Attempting to short-close an already completed PO is rejected with conflict")
+    void testCannotCloseAlreadyCompletedPo() throws Exception {
+        AwardFixture f = setupEvaluatedRfqAndAwardProposal(new BigDecimal("1000.0000"), new BigDecimal("50.00"), new BigDecimal("1000.00"));
+        DecisionCreate input = new DecisionCreate("APPROVE", "Awarded", f.snapshotHash());
+        mockMvc.perform(post("/api/v1/proposals/" + f.proposalId() + "/decision").header("Authorization", "Bearer dev-owner").header("Idempotency-Key", "idemp-cc-001").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(input))).andExpect(status().isOk());
+
+        UUID poId = db.queryForObject("SELECT id FROM purchase_orders WHERE rfq_id = ?", UUID.class, f.rfqId());
+
+        // Full delivery 1000 kg fulfills PO -> status COMPLETED
+        DeliveryIntakeInput dIn = new DeliveryIntakeInput(OffsetDateTime.now(), new BigDecimal("1000.0000"), "DC-FULL", false);
+        mockMvc.perform(post("/api/v1/purchase-orders/" + poId + "/receipts/delivery").header("Authorization", "Bearer dev-procurement").contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(dIn))).andExpect(status().isCreated());
+
+        MvcResult resGet = mockMvc.perform(get("/api/v1/purchase-orders/" + poId).header("Authorization", "Bearer dev-evaluator")).andExpect(status().isOk()).andReturn();
+        PurchaseOrderDetailView detail = mapper.readValue(resGet.getResponse().getContentAsString(), PurchaseOrderDetailView.class);
+
+        assertEquals("COMPLETED", detail.po().status());
+        assertNotNull(detail.po().firstCompletedAt());
+
+        // Attempting to close it should fail
+        PurchaseOrderCloseInput closeInput = new PurchaseOrderCloseInput("Attempting to short-close completed order", null);
+        mockMvc.perform(post("/api/v1/purchase-orders/" + poId + "/close")
+                        .header("Authorization", "Bearer dev-owner")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(closeInput)))
+                .andExpect(status().isConflict());
+    }
+
     private static String sha256Hex(String text) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");

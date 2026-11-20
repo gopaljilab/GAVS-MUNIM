@@ -420,7 +420,7 @@ public class CustomerQuotationApprovalIntegrationTest {
         ProposalView proposal = mapper.readValue(subRes.getResponse().getContentAsString(), ProposalView.class);
 
         // Update database valid_until to 1 hour in the past to simulate expiry
-        db.update("UPDATE customer_quotations SET valid_until = now() - interval '1 hour' WHERE id = ?", fix.quotationId());
+        db.update("UPDATE customer_quotations SET valid_from = now() - interval '2 hours', valid_until = now() - interval '1 hour' WHERE id = ?", fix.quotationId());
 
         DecisionCreate decision = new DecisionCreate("APPROVE", "Approved past deadline", proposal.snapshotHash());
         mockMvc.perform(post("/api/v1/proposals/" + proposal.id() + "/decision")

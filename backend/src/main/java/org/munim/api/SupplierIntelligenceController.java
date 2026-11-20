@@ -88,7 +88,7 @@ public class SupplierIntelligenceController {
             @Valid @RequestBody PurchaseOrderCloseInput input,
             HttpServletRequest request
     ) {
-        Supplier<PurchaseOrderView> action = () -> service.closePurchaseOrder(id, input, actorId(request));
+        Supplier<PurchaseOrderView> action = () -> service.closePurchaseOrder(id, input, role(request), actorId(request));
         if (key != null && !key.isBlank()) {
             return idempotency.execute(role(request), "po.close:" + id, key, input, PurchaseOrderView.class, action);
         }
@@ -102,7 +102,7 @@ public class SupplierIntelligenceController {
             @Valid @RequestBody PurchaseOrderReopenInput input,
             HttpServletRequest request
     ) {
-        Supplier<PurchaseOrderView> action = () -> service.reopenPurchaseOrder(id, input, actorId(request));
+        Supplier<PurchaseOrderView> action = () -> service.reopenPurchaseOrder(id, input, role(request), actorId(request));
         if (key != null && !key.isBlank()) {
             return idempotency.execute(role(request), "po.reopen:" + id, key, input, PurchaseOrderView.class, action);
         }
