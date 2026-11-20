@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.munim.api.ApiDtos.*;
 import org.munim.approval.ApprovalService;
+import org.munim.approval.AwardApprovalFacade;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,10 +14,12 @@ import java.util.UUID;
 @RequestMapping({"/api/v1", "/api"})
 public class ApprovalController {
     private final ApprovalService approvalService;
+    private final AwardApprovalFacade awardApprovalFacade;
     private final IdempotencyService idempotency;
 
-    public ApprovalController(ApprovalService approvalService, IdempotencyService idempotency) {
+    public ApprovalController(ApprovalService approvalService, AwardApprovalFacade awardApprovalFacade, IdempotencyService idempotency) {
         this.approvalService = approvalService;
+        this.awardApprovalFacade = awardApprovalFacade;
         this.idempotency = idempotency;
     }
 
@@ -79,7 +82,7 @@ public class ApprovalController {
             HttpServletRequest request
     ) {
         return idempotency.execute(role(request), "proposal.decision:" + id, key, input, ApprovalView.class,
-                () -> approvalService.decide(id, input, role(request), actorId(request)));
+                () -> awardApprovalFacade.decide(id, input, role(request), actorId(request)));
     }
 
     private String role(HttpServletRequest r) {

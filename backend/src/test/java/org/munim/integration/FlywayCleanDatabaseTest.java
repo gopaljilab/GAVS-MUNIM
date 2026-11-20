@@ -56,8 +56,8 @@ public class FlywayCleanDatabaseTest {
 
         // 3. Verify migration execution results
         assertTrue(result.success, "Flyway migration must succeed cleanly");
-        assertEquals(4, result.migrationsExecuted, "Exactly 4 migrations (V1, V2, V3, V4) must be executed");
-        assertEquals("4", result.targetSchemaVersion, "Target schema version must be 4");
+        assertEquals(5, result.migrationsExecuted, "Exactly 5 migrations (V1, V2, V3, V4, V5) must be executed");
+        assertEquals("5", result.targetSchemaVersion, "Target schema version must be 5");
 
         // 4. Verify flyway_schema_history records
         DriverManagerDataSource ds = new DriverManagerDataSource(DB_URL, USER, PASS);
@@ -68,7 +68,7 @@ public class FlywayCleanDatabaseTest {
                         "FROM flyway_schema_history ORDER BY installed_rank"
         );
 
-        assertEquals(4, history.size(), "flyway_schema_history must contain exactly 4 migration records");
+        assertEquals(5, history.size(), "flyway_schema_history must contain exactly 5 migration records");
         assertEquals("1", history.get(0).get("version"));
         assertEquals("procurement slice", history.get(0).get("description"));
         assertTrue((Boolean) history.get(0).get("success"));
@@ -84,6 +84,10 @@ public class FlywayCleanDatabaseTest {
         assertEquals("4", history.get(3).get("version"));
         assertEquals("profitability and customer quotes", history.get(3).get("description"));
         assertTrue((Boolean) history.get(3).get("success"));
+
+        assertEquals("5", history.get(4).get("version"));
+        assertEquals("supplier intelligence and outcomes", history.get(4).get("description"));
+        assertTrue((Boolean) history.get(4).get("success"));
 
         // 5. Query and verify exact list of created tables
         List<String> tables = jdbc.queryForList(
@@ -106,6 +110,8 @@ public class FlywayCleanDatabaseTest {
                 "flyway_schema_history",
                 "idempotency_records",
                 "materials",
+                "purchase_orders",
+                "purchase_receipts",
                 "quote_evaluations",
                 "quote_extractions",
                 "rfqs",
@@ -114,7 +120,7 @@ public class FlywayCleanDatabaseTest {
                 "suppliers"
         );
 
-        assertEquals(19, tables.size(), "Total tables (18 application tables + 1 flyway history table) must equal 19");
+        assertEquals(21, tables.size(), "Total tables (20 application tables + 1 flyway history table) must equal 21");
         assertEquals(expectedTables, tables, "Exact table list must match schema design");
     }
 }
