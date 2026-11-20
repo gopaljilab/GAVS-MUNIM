@@ -708,6 +708,9 @@ Additionally, in live production environments, demo seeding can be completely di
 ### 6. Fully Offline Self-Hosted Font Subsets (U+20B9 Rupee Support)
 To guarantee that the Indian Rupee symbol (`₹` / `U+20B9`) renders with crisp typographical fidelity without internet dependencies or fallback to generic system fonts, MUNIM bundles self-hosted WOFF2 binaries for `Plus Jakarta Sans` and `JetBrains Mono`. Both `latin` and `latin-ext` (`unicode-range: U+0100-02BA, ..., U+20AD-20C4`) subsets are loaded via CSS `@font-face` rules. (Verified on headless Chrome / Chromium on macOS).
 
+### 7. Append-Only Audit Trail & Immutability Architecture
+The `approvals` and `audit_events` tables are designed as append-only ledger tables. In the application architecture, all service methods strictly execute `INSERT` operations on these tables; no update or delete endpoints, DAO operations, or application-level mutations exist. Every approval or rejection event records the actor, policy version, before/after SHA-256 state hashes, and timestamp to provide tamper-evident forensic records.
+
 ---
 
 ## 🧪 Comprehensive Verification Suite
@@ -745,6 +748,10 @@ mvn test
 | `QuoteIntelligenceIntegrationTest` | 18 | 100% | AI extraction regex, evidence verification, prompt injection defense, clarification loops |
 | `ProfitabilityEngineTest` | 24 | 100% | Sheet-metal formula validation, machine rates, labor, overheads, margin safety thresholds |
 | **Total Suite** | **116 / 116** | **100%** | **All 9 test suites passing with 0 failures, 0 errors, 0 skipped** |
+
+> [!NOTE]
+> **Test Method Annotations vs. Executed Tests (112 vs. 116):**  
+> A static search counts 112 `@Test` method annotations across the test suites. The 116 total test executions reported by Maven Surefire arise because `ProfitabilityEngineTest.java` contains 20 `@Test` methods plus 1 `@ParameterizedTest` (`testParameterizedCostingScenarios`) executing a 4-row `@CsvSource` matrix covering CRCA Steel, SS304, Aluminium 5052, and Galvanized Sheet ($20 + 4 = 24$ tests in `ProfitabilityEngineTest`, and $112 - 20 + 24 = 116$ total executions across the full suite).
 
 ### 2. Frontend Component & Reliability Tests (24 / 24 Passing)
 ```bash

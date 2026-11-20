@@ -73,13 +73,13 @@ INSERT INTO quote_evaluations (
  '{"rfqQuantity": "500.0000", "unitPrice": "95.00", "freightAmount": "1500.00"}'::jsonb,
  '4717fdae7c9964d82ae86b10d97680588096c6373714d16c0c54fd560971729c',
  'COMPLETE',
- '{"purchaseQuantity": "500.0000", "materialBase": "47500.00", "materialGst": "8550.00", "freightBase": "1500.00", "freightGst": "0.00", "economicLandedCost": "57550.00", "cashPayable": "57550.00"}'::jsonb);
+ '{"purchaseQuantity": "500.0000", "materialBase": "47500.00", "materialGst": "8550.00", "freightBase": "1500.00", "freightGst": "0.00", "economicLandedCost": "49000.00", "cashPayable": "57550.00"}'::jsonb);
 
 INSERT INTO evaluation_lines (
   id, evaluation_id, quote_revision_id, material_base, material_gst, freight_base, freight_gst, other_charges, economic_landed_cost, cash_payable, currency
 ) VALUES
 ('ea111111-1111-1111-1111-111111111111', 'e1111111-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
- 47500.00, 8550.00, 1500.00, 0.00, 0.00, 57550.00, 57550.00, 'INR');
+ 47500.00, 8550.00, 1500.00, 0.00, 0.00, 49000.00, 57550.00, 'INR');
 
 -- 7. Customer Enquiries
 INSERT INTO customer_enquiries (id, customer_name, customer_reference, contact_email, contact_phone, required_delivery_date, status, notes) VALUES
@@ -129,8 +129,8 @@ INSERT INTO commercial_proposals (
 ('fa111111-1111-1111-1111-111111111111', 'SUPPLIER_AWARD', 'QUOTE_EVALUATION', 'e1111111-1111-1111-1111-111111111111',
  'e1111111-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111', null,
  'AWARD_SUPPLIER', 'dev-procurement', 'PENDING',
- '{"supplierName": "Apex Steel Works (Bhosari)", "rfqSpecification": "2 mm IS 2062 mild-steel sheet", "rfqQuantity": "500.0000", "rfqUnit": "kg", "economicLandedCost": "57550.00", "cashPayable": "57550.00", "currency": "INR", "savingsVsNextBest": "7780.00", "riskFlag": null, "unitPrice": "95.00", "freightBase": "1500.00"}'::jsonb,
- '4717fdae7c9964d82ae86b10d97680588096c6373714d16c0c54fd560971729c'),
+ '{"supplierName": "Apex Steel Works (Bhosari)", "rfqSpecification": "2 mm IS 2062 mild-steel sheet", "rfqQuantity": "500.0000", "rfqUnit": "kg", "economicLandedCost": "49000.00", "cashPayable": "57550.00", "currency": "INR", "savingsVsNextBest": "7780.00", "riskFlag": null, "unitPrice": "95.00", "freightBase": "1500.00"}'::jsonb,
+ '9c0740e5e8e6d483235d11f2ee08285285938142c7d80785a7ce415db1c6844e'),
 
 ('fa222222-2222-2222-2222-222222222222', 'CUSTOMER_QUOTE', 'CUSTOMER_QUOTATION', 'ee222222-2222-2222-2222-222222222222',
  null, null, 'cc222222-2222-2222-2222-222222222222',

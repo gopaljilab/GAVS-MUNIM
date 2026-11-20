@@ -15,6 +15,79 @@ import {
   type CustomerQuotation
 } from './api';
 
+// Industrial 16px Line Icons (1.5px stroke, tabular-ready)
+function IconAlertTriangle({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function IconCheckCircle({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function IconClock({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function IconTrendingUp({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  );
+}
+
+function IconInfo({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
+function IconLock({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+function IconShield({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function IconRefresh({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+    </svg>
+  );
+}
+
 export function App() {
   const [activeTab, setActiveTab] = useState<'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'DEMO'>('PROCUREMENT');
 
@@ -1238,7 +1311,7 @@ export function App() {
             disabled={busy}
             title="Reset database with authentic Indian fabrication entities"
           >
-            <span>🔄</span> Load Demo Data
+            <IconRefresh /> Load Demo Data
           </button>
           <div className="header-pill-cluster">
             <span className="live-dot" />
@@ -1262,7 +1335,7 @@ export function App() {
       {/* Global Synthetic Demonstration Disclaimer */}
       <div className="demo-disclaimer-banner" style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: '8px', padding: '8px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#cbd5e1' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: '#818cf8', fontSize: '14px' }}>ℹ️</span>
+          <IconInfo style={{ color: '#818cf8', flexShrink: 0 }} />
           <span><strong>Synthetic Demonstration Environment:</strong> All suppliers, customer enquiries, pricing benchmarks, and quotations are simulated fixtures for end-to-end verification.</span>
         </div>
         <span className="badge" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc', border: '1px solid rgba(99, 102, 241, 0.3)', fontSize: '10px' }}>DEV / AUDIT READY</span>
@@ -2530,9 +2603,14 @@ export function App() {
                             <>
                               <div><strong>{item.summary?.supplierName || 'Material Supplier'}</strong></div>
                               <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <span style={{ color: '#34d399', fontWeight: 700 }}>
-                                  {formatInr(item.summary?.economicLandedCost || item.summary?.cashPayable || 0)} Landed
+                                <span style={{ color: '#10b981', fontWeight: 600 }}>
+                                  {formatInr(item.summary?.economicLandedCost ?? item.summary?.cashPayable ?? 0)} Landed
                                 </span>
+                                {item.summary?.cashPayable && Number(item.summary.cashPayable) !== Number(item.summary?.economicLandedCost) && (
+                                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                    ({formatInr(item.summary.cashPayable)} Cash Outflow)
+                                  </span>
+                                )}
                                 {item.summary?.savingsVsNextBest != null && Number(item.summary.savingsVsNextBest) > 0 && (
                                   <span className="badge badge-approved" style={{ fontSize: '10px' }}>
                                     Saved {formatInr(item.summary.savingsVsNextBest)} vs next-best
@@ -2683,11 +2761,11 @@ export function App() {
         <section className="card">
           <div className="row">
             <div>
-              <span className="eyebrow">OPERATIONAL OVERVIEW</span>
+              <span className="eyebrow">Operational overview</span>
               <h2>MUNIM Business Operations Dashboard</h2>
             </div>
             <button type="button" className="btn-sm btn-outline" onClick={() => { loadEnquiries(); loadApprovals(); }}>
-              Refresh Data
+              <IconRefresh style={{ marginRight: '6px' }} /> Refresh Data
             </button>
           </div>
 
@@ -2698,9 +2776,9 @@ export function App() {
                 .filter(s => s > 0)
                 .reduce((a, b) => a + b, 0);
               return (
-                <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '14px' }}>
-                  <div className="hero-label" style={{ color: '#34d399' }}>₹ Saved on Active RFQs</div>
-                  <div className="hero-value" style={{ color: '#34d399' }}>
+                <div className="financial-metric-card">
+                  <div className="hero-label">₹ Saved on Active RFQs</div>
+                  <div className="hero-value" style={{ fontVariantNumeric: 'tabular-nums', color: '#10b981' }}>
                     {activeSavings > 0 ? formatInr(activeSavings) : '₹ 0'}
                   </div>
                   <div className="hero-sub">
@@ -2709,9 +2787,11 @@ export function App() {
                 </div>
               );
             })()}
-            <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '14px' }}>
-              <div className="hero-label" style={{ color: '#f87171' }}>Pending Approvals</div>
-              <div className="hero-value" style={{ color: '#f87171' }}>{approvalQueue.filter(i => i.proposal.status === 'PENDING').length} Pending</div>
+            <div className="financial-metric-card">
+              <div className="hero-label">Pending Approvals</div>
+              <div className="hero-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {approvalQueue.filter(i => i.proposal.status === 'PENDING').length} Pending
+              </div>
               <div className="hero-sub">
                 {approvalQueue.filter(i => i.proposal.status === 'PENDING' && i.proposal.riskFlag).length > 0
                   ? `${approvalQueue.filter(i => i.proposal.status === 'PENDING' && i.proposal.riskFlag).length} Flagged with Risk`
@@ -2721,9 +2801,11 @@ export function App() {
             {(() => {
               const activeCount = enquiries.filter(e => e.status !== 'WON' && e.status !== 'LOST').length;
               return (
-                <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(99, 102, 241, 0.3)', borderRadius: '14px' }}>
-                  <div className="hero-label" style={{ color: '#818cf8' }}>Active Enquiries</div>
-                  <div className="hero-value">{activeCount} Active</div>
+                <div className="financial-metric-card">
+                  <div className="hero-label">Active Enquiries</div>
+                  <div className="hero-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {activeCount} Active
+                  </div>
                   <div className="hero-sub">{enquiries.length} Total Registered</div>
                 </div>
               );
@@ -2756,9 +2838,11 @@ export function App() {
                 : null;
 
               return (
-                <div className="financial-metric-card" style={{ padding: '18px 20px', background: 'rgba(12, 15, 24, 0.85)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px' }}>
-                  <div className="hero-label" style={{ color: '#fbbf24' }}>Quotation Margin (Arithmetic Mean)</div>
-                  <div className="hero-value">{meanMargin !== null ? `${meanMargin.toFixed(1)}%` : '—'}</div>
+                <div className="financial-metric-card">
+                  <div className="hero-label">Quotation Margin (Arithmetic Mean)</div>
+                  <div className="hero-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {meanMargin !== null ? `${meanMargin.toFixed(1)}%` : '—'}
+                  </div>
                   <div className="hero-sub">
                     {aggMargin !== null
                       ? `Target ≥ 20% | Aggregate: ${aggMargin.toFixed(1)}%`
@@ -2772,20 +2856,20 @@ export function App() {
           </div>
 
           {/* Visual SVG Chart: Margin by Customer Enquiry */}
-          <div style={{ margin: '24px 0', padding: '20px', background: 'rgba(10, 12, 18, 0.8)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px' }}>
-            <div className="row" style={{ marginBottom: '14px' }}>
+          <div style={{ margin: '24px 0', padding: '20px', background: 'rgba(10, 12, 18, 0.85)', border: '1px solid var(--border-subtle)', borderRadius: '8px' }}>
+            <div className="row" style={{ marginBottom: '16px' }}>
               <div>
-                <span className="eyebrow" style={{ color: '#818cf8' }}>FINANCIAL GOVERNANCE</span>
-                <h4 style={{ margin: 0, color: '#f8fafc' }}>Realized Margin by Customer Enquiry (%)</h4>
+                <span className="eyebrow">Financial governance</span>
+                <h4 style={{ margin: 0, color: '#f8fafc', fontWeight: 600 }}>Realized Margin by Customer Enquiry (%)</h4>
               </div>
-              <div style={{ display: 'flex', gap: '14px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} /> Healthy (&ge; 20%)
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1' }} /> Acceptable (10–20%)
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#475569' }} /> Acceptable (10–20%)
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} /> Breached (&lt; 10%)
                 </span>
               </div>
@@ -2794,24 +2878,24 @@ export function App() {
             <div style={{ width: '100%', overflowX: 'auto' }}>
               <svg viewBox="0 0 700 180" style={{ width: '100%', minWidth: '550px', height: '170px' }}>
                 {/* Background grid lines */}
-                <line x1="50" y1="30" x2="680" y2="30" stroke="rgba(255,255,255,0.06)" />
-                <line x1="50" y1="70" x2="680" y2="70" stroke="rgba(255,255,255,0.06)" />
-                <line x1="50" y1="110" x2="680" y2="110" stroke="rgba(255,255,255,0.06)" />
-                <line x1="50" y1="150" x2="680" y2="150" stroke="rgba(255,255,255,0.15)" />
+                <line x1="50" y1="30" x2="680" y2="30" stroke="rgba(255,255,255,0.04)" />
+                <line x1="50" y1="70" x2="680" y2="70" stroke="rgba(255,255,255,0.04)" />
+                <line x1="50" y1="110" x2="680" y2="110" stroke="rgba(255,255,255,0.04)" />
+                <line x1="50" y1="150" x2="680" y2="150" stroke="rgba(255,255,255,0.12)" />
 
                 {/* Target Policy Line (20% -> y = 50) */}
-                <line x1="50" y1="50" x2="680" y2="50" stroke="#f59e0b" strokeDasharray="4 4" strokeWidth="1.5" />
-                <text x="682" y="53" fill="#f59e0b" fontSize="10" fontFamily="sans-serif">Target 20%</text>
+                <line x1="50" y1="50" x2="680" y2="50" stroke="#d97706" strokeDasharray="4 4" strokeWidth="1" />
+                <text x="682" y="53" fill="#d97706" fontSize="10" fontFamily="sans-serif">Target 20%</text>
 
                 {/* Minimum Floor Line (10% -> y = 100) */}
-                <line x1="50" y1="100" x2="680" y2="100" stroke="#ef4444" strokeDasharray="3 3" strokeWidth="1.5" />
+                <line x1="50" y1="100" x2="680" y2="100" stroke="#ef4444" strokeDasharray="3 3" strokeWidth="1" />
                 <text x="682" y="103" fill="#ef4444" fontSize="10" fontFamily="sans-serif">Floor 10%</text>
 
                 {/* Y-Axis Labels */}
-                <text x="20" y="34" fill="#94a3b8" fontSize="10">30%</text>
-                <text x="20" y="74" fill="#94a3b8" fontSize="10">20%</text>
-                <text x="20" y="114" fill="#94a3b8" fontSize="10">10%</text>
-                <text x="25" y="154" fill="#94a3b8" fontSize="10">0%</text>
+                <text x="20" y="34" fill="#64748b" fontSize="10" style={{ fontVariantNumeric: 'tabular-nums' }}>30%</text>
+                <text x="20" y="74" fill="#64748b" fontSize="10" style={{ fontVariantNumeric: 'tabular-nums' }}>20%</text>
+                <text x="20" y="114" fill="#64748b" fontSize="10" style={{ fontVariantNumeric: 'tabular-nums' }}>10%</text>
+                <text x="25" y="154" fill="#64748b" fontSize="10" style={{ fontVariantNumeric: 'tabular-nums' }}>0%</text>
 
                 {/* Dynamically Rendered Bars from live proposal margins */}
                 {(() => {
@@ -2832,7 +2916,7 @@ export function App() {
 
                   if (chartData.length === 0) {
                     return (
-                      <text x="350" y="80" fill="#94a3b8" textAnchor="middle" fontSize="12">
+                      <text x="350" y="80" fill="#64748b" textAnchor="middle" fontSize="12">
                         No costed quotes available for margin analysis. Cost an enquiry or load demo data.
                       </text>
                     );
@@ -2842,60 +2926,44 @@ export function App() {
                     const x = 70 + i * 120;
                     const height = Math.min(135, Math.max(15, (d.margin / 30) * 150));
                     const y = 150 - height;
-                    const fill = d.margin >= 20 ? 'url(#gradGreen)' : d.margin >= 10 ? 'url(#gradIndigo)' : 'url(#gradRed)';
-                    const textColor = d.margin >= 20 ? '#34d399' : d.margin >= 10 ? '#a5b4fc' : '#f87171';
+                    const fill = d.margin >= 20 ? '#10b981' : d.margin >= 10 ? '#475569' : '#ef4444';
+                    const textColor = d.margin >= 20 ? '#10b981' : d.margin >= 10 ? '#94a3b8' : '#ef4444';
                     return (
                       <g key={i}>
-                        <rect x={x} y={y} width="60" height={height} rx="4" fill={fill} />
-                        <text x={x + 30} y={y - 4} textAnchor="middle" fill={textColor} fontSize="11" fontWeight="700">
-                          {d.margin.toFixed(1)}%{d.isBreach ? ' ⚠' : ''}
+                        <rect x={x} y={y} width="52" height={height} rx="2" fill={fill} />
+                        <text x={x + 26} y={y - 5} textAnchor="middle" fill={textColor} fontSize="11" fontWeight="600" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {d.margin.toFixed(1)}%{d.isBreach ? ' (breach)' : ''}
                         </text>
-                        <text x={x + 30} y="166" textAnchor="middle" fill={d.isBreach ? '#fca5a5' : '#cbd5e1'} fontSize="10">
-                          {d.label}{d.isBreach ? ' (Breach)' : ''}
+                        <text x={x + 26} y="166" textAnchor="middle" fill={d.isBreach ? '#fca5a5' : '#94a3b8'} fontSize="10">
+                          {d.label}
                         </text>
                       </g>
                     );
                   });
                 })()}
-
-                {/* Gradients */}
-                <defs>
-                  <linearGradient id="gradGreen" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#047857" />
-                  </linearGradient>
-                  <linearGradient id="gradIndigo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#818cf8" />
-                    <stop offset="100%" stopColor="#4338ca" />
-                  </linearGradient>
-                  <linearGradient id="gradRed" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ef4444" />
-                    <stop offset="100%" stopColor="#991b1b" />
-                  </linearGradient>
-                </defs>
               </svg>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', margin: '20px 0 10px' }}>
-            <div style={{ padding: '14px 18px', background: 'rgba(10, 12, 18, 0.85)', border: '1px solid var(--border-subtle)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', margin: '20px 0 10px' }}>
+            <div style={{ padding: '12px 16px', background: 'rgba(10, 12, 18, 0.85)', border: '1px solid var(--border-subtle)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }} />
               <div>
-                <strong style={{ fontSize: '13px', color: '#f8fafc', display: 'block' }}>PostgreSQL 17 Database Engine</strong>
+                <strong style={{ fontSize: '13px', color: '#f8fafc', display: 'block', fontWeight: 600 }}>PostgreSQL 17 Database Engine</strong>
                 <small style={{ color: 'var(--text-muted)' }}>Schema V4 Migrated · 19 Relational Tables</small>
               </div>
             </div>
-            <div style={{ padding: '14px 18px', background: 'rgba(10, 12, 18, 0.85)', border: '1px solid var(--border-subtle)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', boxShadow: '0 0 10px #6366f1' }} />
+            <div style={{ padding: '12px 16px', background: 'rgba(10, 12, 18, 0.85)', border: '1px solid var(--border-subtle)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#64748b', flexShrink: 0 }} />
               <div>
-                <strong style={{ fontSize: '13px', color: '#f8fafc', display: 'block' }}>Deterministic Profitability Engine</strong>
+                <strong style={{ fontSize: '13px', color: '#f8fafc', display: 'block', fontWeight: 600 }}>Deterministic Profitability Engine</strong>
                 <small style={{ color: 'var(--text-muted)' }}>Java BigDecimal · Frozen Financial Rules V1.1</small>
               </div>
             </div>
-            <div style={{ padding: '14px 18px', background: 'rgba(10, 12, 18, 0.85)', border: '1px solid var(--border-subtle)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 10px #f59e0b' }} />
+            <div style={{ padding: '12px 16px', background: 'rgba(10, 12, 18, 0.85)', border: '1px solid var(--border-subtle)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d97706', flexShrink: 0 }} />
               <div>
-                <strong style={{ fontSize: '13px', color: '#f8fafc', display: 'block' }}>Human Owner Governance Gate</strong>
+                <strong style={{ fontSize: '13px', color: '#f8fafc', display: 'block', fontWeight: 600 }}>Human Owner Governance Gate</strong>
                 <small style={{ color: 'var(--text-muted)' }}>Immutable SHA-256 Snapshots · Append-Only Audit</small>
               </div>
             </div>
@@ -2909,7 +2977,7 @@ export function App() {
               return (
                 <div>
                   <div className="row" style={{ marginBottom: '8px' }}>
-                    <h4>Action Required (Owner Focus)</h4>
+                    <h4 style={{ margin: 0, fontWeight: 600 }}>Action Required (Owner Focus)</h4>
                     <span className={`badge ${breaches.length > 0 ? 'badge-rejected' : 'badge-approved'}`}>
                       {breaches.length} Alert{breaches.length !== 1 ? 's' : ''}
                     </span>
@@ -2917,7 +2985,9 @@ export function App() {
                   <div className="action-required-container">
                     {breaches.length > 0 ? (
                       <div className="action-required-item urgent">
-                        <div style={{ fontSize: '18px' }}>🚨</div>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <IconAlertTriangle style={{ color: '#ef4444' }} />
+                        </div>
                         <div>
                           <strong style={{ color: '#f87171', fontSize: '13px', display: 'block' }}>
                             Margin Floor Breach: {firstBreach?.summary?.customerName || 'Customer Quote'} ({firstBreach?.summary?.marginPercent || '< 10'}%)
@@ -2928,10 +2998,12 @@ export function App() {
                         </div>
                       </div>
                     ) : (
-                      <div className="action-required-item info" style={{ borderLeft: '3px solid #10b981' }}>
-                        <div style={{ fontSize: '18px' }}>✅</div>
+                      <div className="action-required-item info" style={{ borderLeft: '2px solid #10b981' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <IconCheckCircle style={{ color: '#10b981' }} />
+                        </div>
                         <div>
-                          <strong style={{ color: '#34d399', fontSize: '13px', display: 'block' }}>
+                          <strong style={{ color: '#10b981', fontSize: '13px', display: 'block' }}>
                             Compliant: Zero active margin breaches
                           </strong>
                           <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -2942,7 +3014,9 @@ export function App() {
                     )}
 
                     <div className="action-required-item warning">
-                      <div style={{ fontSize: '18px' }}>⏳</div>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(217, 119, 6, 0.1)', border: '1px solid rgba(217, 119, 6, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <IconClock style={{ color: '#d97706' }} />
+                      </div>
                       <div>
                         <strong style={{ color: '#fbbf24', fontSize: '13px', display: 'block' }}>
                           {pendingCount} Proposal{pendingCount !== 1 ? 's' : ''} Pending Owner Authorization
@@ -2958,9 +3032,11 @@ export function App() {
                   if (bestItem) {
                     return (
                       <div className="action-required-item info">
-                        <div style={{ fontSize: '18px' }}>💰</div>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <IconTrendingUp style={{ color: '#10b981' }} />
+                        </div>
                         <div>
-                          <strong style={{ color: '#818cf8', fontSize: '13px', display: 'block' }}>
+                          <strong style={{ color: '#f8fafc', fontSize: '13px', display: 'block' }}>
                             Procurement Arbitrage: {formatInr(bestItem.summary.savingsVsNextBest)} Landed Savings
                           </strong>
                           <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -2972,9 +3048,11 @@ export function App() {
                   }
                   return (
                     <div className="action-required-item info">
-                      <div style={{ fontSize: '18px' }}>ℹ️</div>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <IconInfo style={{ color: '#64748b' }} />
+                      </div>
                       <div>
-                        <strong style={{ color: '#818cf8', fontSize: '13px', display: 'block' }}>
+                        <strong style={{ color: '#f8fafc', fontSize: '13px', display: 'block' }}>
                           Multi-Quote Sourcing Intelligence
                         </strong>
                         <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>

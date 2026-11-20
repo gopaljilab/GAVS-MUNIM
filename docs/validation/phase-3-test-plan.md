@@ -15,7 +15,7 @@ Before making any modifications, the repository baseline was inspected:
 |---|---|---|
 | **Git Repository** | Not initialized (`.git` absent) | No branch or commit history to preserve; working directory is local root. |
 | **Backend Code** | Spring Boot 4.1.1 on Java 21, JDBC template, manual DTOs, demo token filter | Deterministic financial calculator (`FinancialEvaluator`), idempotency manager, controller mappings in place. |
-| **Frontend Code** | React 19, TypeScript 5.9, Vite 7.3.7, Vitest 3.2.4 | Single-page manual quote entry and evaluation view. Unit test had a mock response length mismatch (6 responses mocked vs 7 requests dispatched). |
+| **Frontend Code** | React 18.3.1, TypeScript 5.9, Vite 7.3.7, Vitest 3.2.4 | Single-page manual quote entry and evaluation view. Unit test had a mock response length mismatch (6 responses mocked vs 7 requests dispatched). |
 | **Database Migrations** | `V1__procurement_slice.sql` with Flyway | DDL defines 8 slice tables + composite FKs and check constraints; seeded with 1 material. |
 | **Application Config** | `backend/src/main/resources/application.yml` | Default password originally mismatched `.env.example`; Flyway auto-configuration dependency (`spring-boot-flyway`) was missing from `pom.xml`. |
 | **Docker Environment** | Docker Engine 29.8.2, Docker Desktop 4.95.0, Compose v2 | Daemon socket is operational and accessible. Images `gavs-munim-backend` and `gavs-munim-frontend` pre-built. |
