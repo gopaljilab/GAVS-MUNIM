@@ -14,6 +14,7 @@ import {
   type CostingSheet,
   type CustomerQuotation
 } from './api';
+import { SupplierPerformance } from './SupplierPerformance';
 
 // Industrial 16px Line Icons (1.5px stroke, tabular-ready)
 function IconAlertTriangle({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
@@ -89,7 +90,15 @@ function IconRefresh({ className = '', style = {} }: { className?: string; style
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'DEMO'>('PROCUREMENT');
+  const [activeTab, setActiveTab] = useState<'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'PERFORMANCE' | 'DEMO'>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('tab');
+      if (p === 'PERFORMANCE' || p === 'COMMERCIAL' || p === 'APPROVALS' || p === 'DASHBOARD' || p === 'DEMO') return p;
+    } catch {
+      // ignore
+    }
+    return 'PROCUREMENT';
+  });
 
   // --- Procurement state (Phase 2 & Phase 5) ---
   const [rfq, setRfq] = useState<Rfq | null>(null);
@@ -261,12 +270,12 @@ export function App() {
   // --- Search & Filter for Customer Enquiries ---
   const [enquirySearch, setEnquirySearch] = useState('');
 
-  function switchTab(tab: 'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'DEMO') {
+  function switchTab(tab: 'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'PERFORMANCE' | 'DEMO') {
     setError('');
     setActiveTab(tab);
   }
 
-  // Keyboard shortcut listener (1-5 to switch tabs)
+  // Keyboard shortcut listener (1-6 to switch tabs)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
@@ -275,6 +284,7 @@ export function App() {
       if (e.key === '3') switchTab('APPROVALS');
       if (e.key === '4') switchTab('DASHBOARD');
       if (e.key === '5') switchTab('DEMO');
+      if (e.key === '6') switchTab('PERFORMANCE');
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -1388,6 +1398,20 @@ export function App() {
           <span className="tab-label">Guided Demo</span>
           <kbd className="kbd-hint">5</kbd>
         </button>
+        {(role === 'dev-owner' || role === 'dev-procurement') && (
+          <button
+            type="button"
+            className={`nav-tab ${activeTab === 'PERFORMANCE' ? 'active' : ''}`}
+            onClick={() => switchTab('PERFORMANCE')}
+          >
+            <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v18h18" />
+              <path d="m19 9-5 5-4-4-3 3" />
+            </svg>
+            <span className="tab-label">Supplier Performance</span>
+            <kbd className="kbd-hint">6</kbd>
+          </button>
+        )}
       </nav>
 
       {/* ========================================================= */}
@@ -3084,6 +3108,13 @@ export function App() {
             </div>
           </div>
         </section>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 6: SUPPLIER PERFORMANCE (V2.3)                        */}
+      {/* ========================================================= */}
+      {activeTab === 'PERFORMANCE' && (
+        <SupplierPerformance role={role} />
       )}
 
       {/* ========================================================= */}

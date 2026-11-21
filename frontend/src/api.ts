@@ -119,6 +119,41 @@ export type ClarificationDraft = {
   status: string;
 };
 
+export type ConfidenceTier = 'UNRATED' | 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface SupplierScorecard {
+  supplierId: string;
+  supplierName: string;
+  contractOtdRate: number | null;
+  eligiblePoCount: number;
+  onTimePoCount: number;
+  delayedPoCount: number;
+  shortClosedPoCount: number;
+  averagePoDelayDays: number | null;
+  consignmentCount: number;
+  consignmentOnTimeRate: number | null;
+  averageConsignmentsPerCompletedPo: number | null;
+  partialDeliveryOrderRate: number | null;
+  gateAcceptanceRate: number | null;
+  netUsableYieldRate: number | null;
+  latentDefectRate: number | null;
+  inspectedQuantityTotal: number | null;
+  costVariancePercentage: number | null;
+  totalActualLandedCost: number | null;
+  confidenceTier: ConfidenceTier;
+  confidenceExplanation: string;
+}
+
+export interface SupplierScorecardList {
+  items: SupplierScorecard[];
+}
+
+export interface SupplierPerformanceFilters {
+  materialId?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
 export interface ProblemDetails {
   type?: string;
   title?: string;
@@ -213,6 +248,12 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+function formatIsoDateTime(val?: string, endOfDay = false): string | undefined {
+  if (!val) return undefined;
+  if (val.includes('T')) return val;
+  return endOfDay ? `${val}T23:59:59Z` : `${val}T00:00:00Z`;
+}
+
 export const api = {
   checkHealth: async () => {
     const rootUrl = base.replace(/\/api(\/v1)?$/, '');
@@ -286,5 +327,33 @@ export const api = {
   seedDemoData: () =>
     req<{ status: string; message: string }>('/demo/seed', { method: 'POST', headers: h() }),
   simulateCosting: (bomId: string, scrapPct?: number, targetMarginPct?: number) =>
-    req<any>('/boms/' + bomId + '/simulate-costing?' + (scrapPct !== undefined ? 'scrapPercentage=' + scrapPct : '') + (targetMarginPct !== undefined ? '&targetMarginPct=' + targetMarginPct : ''), { method: 'POST', headers: h() })
+    req<any>('/boms/' + bomId + '/simulate-costing?' + (scrapPct !== undefined ? 'scrapPercentage=' + scrapPct : '') + (targetMarginPct !== undefined ? '&targetMarginPct=' + targetMarginPct : ''), { method: 'POST', headers: h() }),
+  listSupplierScorecards: (filters?: SupplierPerformanceFilters) => {
+    const params = new URLSearchParams();
+    if (filters?.materialId) params.append('materialId', filters.materialId);
+    if (filters?.fromDate) {
+      const dt = formatIsoDateTime(filters.fromDate, false);
+      if (dt) params.append('fromDate', dt);
+    }
+    if (filters?.toDate) {
+      const dt = formatIsoDateTime(filters.toDate, true);
+      if (dt) params.append('toDate', dt);
+    }
+    const qs = params.toString();
+    return req<SupplierScorecardList>('/suppliers/scorecards' + (qs ? '?' + qs : ''), { headers: h() });
+  },
+  getSupplierScorecard: (supplierId: string, filters?: SupplierPerformanceFilters) => {
+    const params = new URLSearchParams();
+    if (filters?.materialId) params.append('materialId', filters.materialId);
+    if (filters?.fromDate) {
+      const dt = formatIsoDateTime(filters.fromDate, false);
+      if (dt) params.append('fromDate', dt);
+    }
+    if (filters?.toDate) {
+      const dt = formatIsoDateTime(filters.toDate, true);
+      if (dt) params.append('toDate', dt);
+    }
+    const qs = params.toString();
+    return req<SupplierScorecard>('/suppliers/' + supplierId + '/scorecard' + (qs ? '?' + qs : ''), { headers: h() });
+  }
 };
