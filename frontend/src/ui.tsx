@@ -15,6 +15,7 @@ import {
   type CustomerQuotation
 } from './api';
 import { SupplierPerformance } from './SupplierPerformance';
+import { SupplierRecommendations } from './SupplierRecommendations';
 
 // Industrial 16px Line Icons (1.5px stroke, tabular-ready)
 function IconAlertTriangle({ className = '', style = {} }: { className?: string; style?: React.CSSProperties }) {
@@ -90,10 +91,10 @@ function IconRefresh({ className = '', style = {} }: { className?: string; style
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'PERFORMANCE' | 'DEMO'>(() => {
+  const [activeTab, setActiveTab] = useState<'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'PERFORMANCE' | 'DEMO' | 'RECOMMENDATIONS'>(() => {
     try {
       const p = new URLSearchParams(window.location.search).get('tab');
-      if (p === 'PERFORMANCE' || p === 'COMMERCIAL' || p === 'APPROVALS' || p === 'DASHBOARD' || p === 'DEMO') return p;
+      if (p === 'PERFORMANCE' || p === 'COMMERCIAL' || p === 'APPROVALS' || p === 'DASHBOARD' || p === 'DEMO' || p === 'RECOMMENDATIONS') return p;
     } catch {
       // ignore
     }
@@ -101,7 +102,25 @@ export function App() {
   });
 
   // --- Procurement state (Phase 2 & Phase 5) ---
-  const [rfq, setRfq] = useState<Rfq | null>(null);
+  const [rfq, setRfq] = useState<Rfq | null>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('rfqId');
+      if (p) {
+        return {
+          id: p,
+          materialId: 'mat-1',
+          specification: '2 mm IS 2062 mild-steel sheet',
+          quantity: '500.0000',
+          unit: 'kg',
+          requiredProcurementDeliveryAt: new Date(Date.now() + 7 * 86400000).toISOString(),
+          referenceAt: new Date().toISOString(),
+          timezone: 'Asia/Kolkata',
+          status: 'OPEN'
+        };
+      }
+    } catch {}
+    return null;
+  });
   const [quote, setQuote] = useState<Quote | null>(null);
   const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
   const [clarificationDraft, setClarificationDraft] = useState<ClarificationDraft | null>(null);
@@ -270,12 +289,12 @@ export function App() {
   // --- Search & Filter for Customer Enquiries ---
   const [enquirySearch, setEnquirySearch] = useState('');
 
-  function switchTab(tab: 'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'PERFORMANCE' | 'DEMO') {
+  function switchTab(tab: 'PROCUREMENT' | 'DASHBOARD' | 'COMMERCIAL' | 'APPROVALS' | 'PERFORMANCE' | 'DEMO' | 'RECOMMENDATIONS') {
     setError('');
     setActiveTab(tab);
   }
 
-  // Keyboard shortcut listener (1-6 to switch tabs)
+  // Keyboard shortcut listener (1-7 to switch tabs)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) return;
@@ -285,6 +304,7 @@ export function App() {
       if (e.key === '4') switchTab('DASHBOARD');
       if (e.key === '5') switchTab('DEMO');
       if (e.key === '6') switchTab('PERFORMANCE');
+      if (e.key === '7') switchTab('RECOMMENDATIONS');
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -1398,19 +1418,33 @@ export function App() {
           <span className="tab-label">Guided Demo</span>
           <kbd className="kbd-hint">5</kbd>
         </button>
-        {(role === 'dev-owner' || role === 'dev-procurement') && (
-          <button
-            type="button"
-            className={`nav-tab ${activeTab === 'PERFORMANCE' ? 'active' : ''}`}
-            onClick={() => switchTab('PERFORMANCE')}
-          >
-            <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 3v18h18" />
-              <path d="m19 9-5 5-4-4-3 3" />
-            </svg>
-            <span className="tab-label">Supplier Performance</span>
-            <kbd className="kbd-hint">6</kbd>
-          </button>
+        {(role === 'dev-owner' || role === 'dev-procurement' || role === 'dev-evaluator') && (
+          <>
+            <button
+              type="button"
+              className={`nav-tab ${activeTab === 'PERFORMANCE' ? 'active' : ''}`}
+              onClick={() => switchTab('PERFORMANCE')}
+            >
+              <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3v18h18" />
+                <path d="m19 9-5 5-4-4-3 3" />
+              </svg>
+              <span className="tab-label">Supplier Performance</span>
+              <kbd className="kbd-hint">6</kbd>
+            </button>
+            <button
+              type="button"
+              className={`nav-tab ${activeTab === 'RECOMMENDATIONS' ? 'active' : ''}`}
+              onClick={() => switchTab('RECOMMENDATIONS')}
+              data-testid="nav-tab-recommendations"
+            >
+              <svg className="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+              </svg>
+              <span className="tab-label">AI Recommendations</span>
+              <kbd className="kbd-hint">7</kbd>
+            </button>
+          </>
         )}
       </nav>
 
@@ -1532,7 +1566,21 @@ export function App() {
             <section className="card">
               <div className="row">
                 <h2>RFQ and Commercial Status</h2>
-                <span className={`badge ${rfq.status === 'AWARDED' ? 'badge-approved' : ''}`}>{rfq.status}</span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {(role === 'dev-owner' || role === 'dev-procurement' || role === 'dev-evaluator') && (
+                    <button
+                      type="button"
+                      className="btn-ai-gradient"
+                      style={{ padding: '4px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => switchTab('RECOMMENDATIONS')}
+                      data-testid="view-rfq-recommendations-btn"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+                      AI Recommendations
+                    </button>
+                  )}
+                  <span className={`badge ${rfq.status === 'AWARDED' ? 'badge-approved' : ''}`}>{rfq.status}</span>
+                </div>
               </div>
               <p>{rfq.specification} · {rfq.quantity} {rfq.unit} · due {formatDateIn(rfq.requiredProcurementDeliveryAt)}</p>
             </section>
@@ -3115,6 +3163,42 @@ export function App() {
       {/* ========================================================= */}
       {activeTab === 'PERFORMANCE' && (
         <SupplierPerformance role={role} />
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 7: AI SUPPLIER RECOMMENDATIONS (V2.4)                 */}
+      {/* ========================================================= */}
+      {activeTab === 'RECOMMENDATIONS' && (
+        <section className="card" style={{ padding: '24px' }}>
+          {rfq ? (
+            <SupplierRecommendations
+              rfqId={rfq.id}
+              onBack={() => switchTab('PROCUREMENT')}
+              onViewScorecard={() => {
+                switchTab('PERFORMANCE');
+              }}
+            />
+          ) : (
+            <div style={{ textAlign: 'center', padding: '48px 16px' }} data-testid="recommendations-empty-rfq">
+              <div style={{ display: 'inline-flex', padding: '12px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '50%', marginBottom: '16px' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              </div>
+              <h3 style={{ color: '#f1f5f9', marginBottom: '8px', fontSize: '18px', fontWeight: 600 }}>No Active RFQ Selected</h3>
+              <p className="muted" style={{ maxWidth: '520px', margin: '0 auto 24px', fontSize: '13px', lineHeight: 1.6 }}>
+                Recommendations synthesize supplier quotations and historical performance for a specific RFQ requirement.
+                Please create or load an RFQ in the Procurement tab first, or run the Guided Demo to generate evaluated quotes.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button type="button" onClick={() => switchTab('PROCUREMENT')}>
+                  Go to Procurement
+                </button>
+                <button type="button" className="btn-outline" onClick={() => switchTab('DEMO')}>
+                  Run Guided Demo
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
       {/* ========================================================= */}

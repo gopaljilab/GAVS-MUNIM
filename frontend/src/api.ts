@@ -154,6 +154,45 @@ export interface SupplierPerformanceFilters {
   toDate?: string;
 }
 
+export type RecommendationTier = 'RECOMMENDED' | 'VIABLE_ALTERNATIVE' | 'CAUTION_RISK' | 'INSUFFICIENT_EVIDENCE';
+
+export interface SupplierRecommendationCandidateView {
+  supplierId: string;
+  supplierName: string;
+  rank: number;
+  recommendationTier: RecommendationTier;
+  recommendationHeadline?: string;
+  quoteId?: string;
+  quoteRevisionId?: string;
+  quotedUnitPrice?: number | null;
+  quotedEconomicLandedCost?: number | null;
+  quotedCashPayable?: number | null;
+  quotedPromisedDeliveryDate?: string | null;
+  meetsRequiredDeliveryDate?: boolean | null;
+  historicalScorecard?: SupplierScorecard;
+  verifiedStrengths: string[];
+  identifiedRisks: string[];
+  missingEvidence: string[];
+  advisoryExplanation?: string;
+  verifiedPerformerBadge: boolean;
+  costDriftWarning: boolean;
+  deliveryRiskWarning: boolean;
+  isMaterialSpecificEvidence?: boolean;
+  compositeSuitabilityScore?: number | null;
+}
+
+export interface SupplierRecommendationList {
+  rfqId: string;
+  rfqMaterialName: string;
+  rfqQuantity: number | string;
+  rfqUnit: string;
+  requiredDeliveryAt: string;
+  recommendations: SupplierRecommendationCandidateView[];
+  overallProcurementBrief: string;
+  aiProviderUsed: string;
+  aiGeneratedExplanation: boolean;
+}
+
 export interface ProblemDetails {
   type?: string;
   title?: string;
@@ -355,5 +394,7 @@ export const api = {
     }
     const qs = params.toString();
     return req<SupplierScorecard>('/suppliers/' + supplierId + '/scorecard' + (qs ? '?' + qs : ''), { headers: h() });
-  }
+  },
+  getSupplierRecommendations: (rfqId: string) =>
+    req<SupplierRecommendationList>('/rfqs/' + rfqId + '/supplier-recommendations', { headers: h() })
 };

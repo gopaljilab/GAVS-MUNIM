@@ -83,6 +83,7 @@ public class DemoAuthFilter extends OncePerRequestFilter {
         if(path.equals("/api/v1/owner-policy")||path.startsWith("/api/v1/approvals")||path.contains("/decision")||path.startsWith("/api/v1/demo")
                 ||path.contains("/verify")||path.contains("/adjust")||path.contains("/close")||path.contains("/reopen"))return Set.of("OWNER");
         if(method.equals("GET")&&(path.equals("/api/v1/materials")||path.equals("/api/v1/suppliers")))return Set.of("OWNER","PROCUREMENT_OPERATOR");
+        if(method.equals("GET")&&path.matches("/api/v1/rfqs/[^/]+/supplier-recommendations"))return Set.of("OWNER","PROCUREMENT_OPERATOR","READ_ONLY_EVALUATOR");
         if(method.equals("POST")&&path.equals("/api/v1/rfqs"))return Set.of("OWNER","PROCUREMENT_OPERATOR");
         if(method.equals("POST")&&path.equals("/api/v1/suppliers"))return Set.of("OWNER","PROCUREMENT_OPERATOR");
         if(method.equals("POST")&&path.matches("/api/v1/rfqs/[^/]+/quotes"))return Set.of("OWNER","PROCUREMENT_OPERATOR");
