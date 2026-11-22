@@ -36,6 +36,12 @@ munim:
     timeout-seconds: ${MUNIM_AI_TIMEOUT_SECONDS:5}
     api-key: ${MUNIM_AI_API_KEY:}
     base-url: ${MUNIM_AI_BASE_URL:https://api.openai.com/v1}
+  ml:
+    service-url: ${MUNIM_ML_SERVICE_URL:http://localhost:8000}
+    internal-secret: ${INTERNAL_ML_SECRET:munim-internal-ml-secret-dev}
+    connect-timeout-ms: ${MUNIM_ML_CONNECT_TIMEOUT_MS:1000}
+    read-timeout-ms: ${MUNIM_ML_READ_TIMEOUT_MS:2000}
+    enabled: ${MUNIM_ML_ENABLED:true}
 ---
 spring:
   config:
